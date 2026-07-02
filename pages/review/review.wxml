@@ -1,0 +1,51 @@
+<view class="page">
+  <view class="panel status-panel">
+    <view>
+      <view class="section-title">校对状态</view>
+      <view class="{{validation.ok ? 'muted' : 'danger'}}">{{validation.message}}</view>
+    </view>
+    <view class="pill">待确认 {{pendingCount}}</view>
+  </view>
+
+  <view class="panel">
+    <view class="field-label">月份</view>
+    <input value="{{draft.month}}" data-field="month" bindinput="updateMonth" placeholder="YYYY-MM" />
+  </view>
+
+  <view class="panel image-panel">
+    <view class="image-header">
+      <view>
+        <view class="section-title">工资条图片</view>
+        <view class="muted">{{imagePath ? '点击图片可放大查看' : '可拍照或从相册选择，随记录一起保存'}}</view>
+      </view>
+      <view class="image-actions">
+        <button class="mini-action" bindtap="chooseCamera">拍照</button>
+        <button class="mini-action" bindtap="chooseAlbum">相册</button>
+      </view>
+    </view>
+    <image wx:if="{{imagePath}}" src="{{imagePath}}" mode="aspectFit" bindtap="previewImage"></image>
+    <view wx:else class="image-empty" bindtap="chooseCamera">暂无图片，点击拍照</view>
+    <button wx:if="{{imagePath}}" class="mini-remove" bindtap="removeImage">移除图片</button>
+  </view>
+
+  <view class="panel" wx:for="{{sections}}" wx:key="group">
+    <view class="section-title">{{item.title}}</view>
+    <view wx:for="{{item.items}}" wx:for-item="field" wx:key="id" class="field-row {{field.pending && !field.confirmed ? 'pending' : ''}}">
+      <view>
+        <input value="{{field.name}}" data-id="{{field.id}}" bindinput="updateName" />
+        <view wx:if="{{field.pending && !field.confirmed}}" class="danger">低置信度，需人工确认</view>
+      </view>
+      <view>
+        <input type="text" value="{{field.amount}}" data-id="{{field.id}}" bindinput="updateAmount" placeholder="可输入负数" />
+        <button wx:if="{{field.pending && !field.confirmed}}" class="mini-confirm" data-id="{{field.id}}" bindtap="confirmItem">确认</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="toolbar bottom-actions">
+    <button class="btn secondary" bindtap="addIncome">添加收入</button>
+    <button class="btn secondary" bindtap="addDeduct">添加扣除</button>
+  </view>
+
+  <button class="btn save" disabled="{{!canSave}}" bindtap="saveRecord">保存记录</button>
+</view>

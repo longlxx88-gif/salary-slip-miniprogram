@@ -1,0 +1,116 @@
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
+}
+
+.page {
+  padding-bottom: 160rpx;
+}
+
+.summary-grid > view {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.metric {
+  font-size: 32rpx;
+  font-weight: 800;
+  margin-top: 8rpx;
+  line-height: 1.15;
+  word-break: break-all;
+}
+
+@media (max-width: 360px) {
+  .metric {
+    font-size: 28rpx;
+  }
+}
+
+.filter-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.picker {
+  min-height: 64rpx;
+  line-height: 64rpx;
+  padding: 0 18rpx;
+  border: 1rpx solid #dbe0e7;
+  border-radius: 8rpx;
+  background: #fff;
+}
+
+.empty {
+  padding: 80rpx 24rpx;
+  text-align: center;
+}
+
+.record {
+  background: #fff;
+  border: 1rpx solid #e5e8ee;
+  border-radius: 8rpx;
+  padding: 20rpx;
+  margin-bottom: 16rpx;
+}
+
+.record-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.record-month {
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.record-net {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: #1f7a68;
+  white-space: nowrap;
+}
+
+.record-actions {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.mini {
+  min-height: 56rpx;
+  line-height: 56rpx;
+  margin: 0;
+  padding: 0 18rpx;
+  border-radius: 8rpx;
+  background: #eef2f5;
+  color: #20242c;
+  font-size: 24rpx;
+}
+
+.danger-text {
+  color: #bc3b33;
+}
+
+.fab {
+  position: fixed;
+  right: 42rpx;
+  bottom: 132rpx;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 116rpx;
+  height: 116rpx;
+  min-height: 116rpx;
+  max-width: 116rpx;
+  padding: 0;
+  border-radius: 999rpx;
+  background: #4fb39e;
+  color: #fff;
+  font-size: 74rpx;
+  line-height: 116rpx;
+  box-shadow: 0 18rpx 38rpx rgba(31, 122, 104, 0.28);
+}

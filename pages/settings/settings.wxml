@@ -1,0 +1,22 @@
+<view class="page">
+  <view class="panel">
+    <view class="section-title">置信度阈值</view>
+    <slider min="50" max="95" step="1" value="{{settings.confidenceThreshold}}" show-value bindchange="changeThreshold" />
+    <view class="muted">低于该值的金额字符会标记为待确认。</view>
+  </view>
+
+  <view class="panel">
+    <view class="section-title">访问密码</view>
+    <input password value="{{settings.privacyPassword}}" placeholder="留空则不启用" bindinput="changePassword" />
+  </view>
+
+  <view class="panel switch-row">
+    <view>
+      <view class="section-title">加密云备份</view>
+      <view class="muted">初版保留开关，默认纯本地存储。</view>
+    </view>
+    <switch checked="{{settings.cloudBackup}}" bindchange="changeBackup" />
+  </view>
+
+  <button class="btn" bindtap="save">保存设置</button>
+</view>

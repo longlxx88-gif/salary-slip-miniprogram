@@ -1,0 +1,9 @@
+{
+  "name": "salary-slip-ocr",
+  "version": "1.0.0",
+  "description": "腾讯云 OCR 云函数中转",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "latest"
+  }
+}

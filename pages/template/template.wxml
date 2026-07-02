@@ -1,0 +1,11 @@
+<view class="page">
+  <view class="panel" wx:for="{{sections}}" wx:key="group">
+    <view class="section-title">{{item.title}}</view>
+    <view wx:for="{{item.items}}" wx:for-item="field" wx:key="index" class="template-row">
+      <input value="{{field}}" data-group="{{item.group}}" data-index="{{index}}" bindinput="updateName" />
+    </view>
+    <button class="btn secondary add-btn" data-group="{{item.group}}" bindtap="addField">添加字段</button>
+  </view>
+
+  <button class="btn warn" bindtap="resetTemplate">重置模板</button>
+</view>

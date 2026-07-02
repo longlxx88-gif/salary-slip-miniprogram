@@ -1,0 +1,33 @@
+<view class="page mine-page">
+  <view class="profile-card">
+    <view class="avatar">薪</view>
+    <view>
+      <view class="title">工资台账</view>
+      <view class="muted">管理模板、导出记录与隐私设置</view>
+    </view>
+  </view>
+
+  <view class="panel menu-panel">
+    <view class="menu-item" bindtap="exportCsv">
+      <view>
+        <view class="menu-title">导出数据</view>
+        <view class="muted">导出当前全部工资记录 CSV</view>
+      </view>
+      <view class="arrow">›</view>
+    </view>
+    <view class="menu-item" bindtap="goTemplate">
+      <view>
+        <view class="menu-title">模板管理</view>
+        <view class="muted">调整收入、扣除、年度项目</view>
+      </view>
+      <view class="arrow">›</view>
+    </view>
+    <view class="menu-item" bindtap="goSettings">
+      <view>
+        <view class="menu-title">隐私设置</view>
+        <view class="muted">本地隐私和备份设置</view>
+      </view>
+      <view class="arrow">›</view>
+    </view>
+  </view>
+</view>

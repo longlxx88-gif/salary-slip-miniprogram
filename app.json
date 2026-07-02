@@ -1,0 +1,46 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/stats/stats",
+    "pages/mine/mine",
+    "pages/scan/scan",
+    "pages/review/review",
+    "pages/template/template",
+    "pages/settings/settings"
+  ],
+  "window": {
+    "navigationBarTitleText": "工资台账",
+    "navigationBarBackgroundColor": "#f7f8fb",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f7f8fb"
+  },
+  "tabBar": {
+    "color": "#8a8f98",
+    "selectedColor": "#1f7a68",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "assets/tabbar/icon_857.png",
+        "selectedIconPath": "assets/tabbar-selected/icon_857.png"
+      },
+      {
+        "pagePath": "pages/stats/stats",
+        "text": "统计",
+        "iconPath": "assets/tabbar/tongji.png",
+        "selectedIconPath": "assets/tabbar-selected/tongji.png"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的",
+        "iconPath": "assets/tabbar/wode.png",
+        "selectedIconPath": "assets/tabbar-selected/wode.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

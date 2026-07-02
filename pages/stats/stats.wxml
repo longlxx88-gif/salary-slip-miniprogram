@@ -1,0 +1,54 @@
+<view class="page">
+  <view class="toolbar">
+    <button class="btn secondary" data-range="half" bindtap="changeRange">近半年</button>
+    <button class="btn secondary" data-range="year" bindtap="changeRange">全年</button>
+    <button class="btn secondary" data-range="all" bindtap="changeRange">全部</button>
+    <button class="btn secondary" bindtap="saveCharts">保存图表</button>
+  </view>
+
+  <view class="panel">
+    <view class="summary-grid">
+      <view>
+        <view class="muted">累计应发</view>
+        <view class="metric">¥{{summary.grossText}}</view>
+      </view>
+      <view>
+        <view class="muted">累计扣除</view>
+        <view class="metric">¥{{summary.deductText}}</view>
+      </view>
+      <view>
+        <view class="muted">累计实发</view>
+        <view class="metric">¥{{summary.netText}}</view>
+      </view>
+      <view>
+        <view class="muted">月均应发</view>
+        <view class="metric">¥{{summary.avgGrossText}}</view>
+      </view>
+      <view>
+        <view class="muted">月均实发</view>
+        <view class="metric">¥{{summary.avgNetText}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="chart-title-row">
+      <view class="section-title">{{chartName}}趋势</view>
+      <picker mode="selector" range="{{chartOptions}}" value="{{chartIndex}}" bindchange="changeChartItem">
+        <view class="picker compact">{{chartName}}</view>
+      </picker>
+    </view>
+    <canvas canvas-id="lineChart" class="chart" bindtap="tapLineChart"></canvas>
+    <view class="chart-tip">{{selectedPointText || '点击曲线点查看实际数据'}}</view>
+  </view>
+
+  <view class="panel">
+    <view class="section-title">收入结构</view>
+    <canvas canvas-id="pieChart" class="chart"></canvas>
+  </view>
+
+  <view class="panel">
+    <view class="section-title">收入扣除对比</view>
+    <canvas canvas-id="barChart" class="chart tall"></canvas>
+  </view>
+</view>
