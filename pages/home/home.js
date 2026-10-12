@@ -1,33 +1,19 @@
 const storage = require('../../utils/storage')
 const salary = require('../../utils/salary')
+const formats = require('../../utils/formats')
 
 function money(value) {
-  return Number(value || 0).toFixed(2)
-}
-
-function deductAmount(record, template) {
-  const totalName = (template.deduct || []).find(name => name.indexOf('合计') >= 0)
-  if (totalName && record.items[totalName] !== undefined && record.items[totalName] !== '') {
-    return Number(record.items[totalName] || 0)
-  }
-
-  return (template.deduct || [])
-    .filter(name => name.indexOf('合计') < 0)
-    .reduce((sum, name) => sum + Number(record.items[name] || 0), 0)
+  return Number(value || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
 Page({
   data: {
     allRecords: [],
-    records: [],
+    groups: [],
+    summaries: [],
     yearOptions: ['全部'],
     selectedYear: '全部',
-    selectedYearText: '全部年份',
-    summary: {
-      count: 0,
-      netText: '0.00',
-      avgNetText: '0.00'
-    }
+    selectedYearText: '全部年份'
   },
 
   onShow() {
@@ -35,24 +21,42 @@ Page({
   },
 
   loadRecords() {
-    const template = storage.getTemplate()
     const allRecords = storage.getRecords()
     const years = Array.from(new Set(allRecords.map(item => item.month.slice(0, 4)))).sort((a, b) => b.localeCompare(a))
     const yearOptions = ['全部'].concat(years)
     const selectedYear = yearOptions.indexOf(this.data.selectedYear) >= 0 ? this.data.selectedYear : '全部'
-    const records = this.decorateRecords(this.filterRecords(allRecords, selectedYear), template)
-    const summary = salary.summarize(records, template)
+    const records = this.filterRecords(allRecords, selectedYear)
+    const templates = {}
+    formats.FORMAT_IDS.forEach(id => {
+      templates[id] = storage.getTemplate(id)
+    })
+
+    // 不同格式币种不同，分开汇总
+    const summaries = formats.FORMAT_IDS
+      .map(id => {
+        const list = records.filter(record => record.format === id)
+        if (!list.length) return null
+        const summary = salary.summarize(list, templates[id], id)
+        const config = formats.getFormat(id)
+        return {
+          format: id,
+          name: config.name,
+          currency: config.currency,
+          symbol: config.symbol,
+          count: summary.count,
+          netText: money(summary.net),
+          avgNetText: money(summary.avgNet)
+        }
+      })
+      .filter(Boolean)
 
     this.setData({
       allRecords,
-      records,
+      groups: this.groupByMonth(records, allRecords, templates),
+      summaries,
       yearOptions,
       selectedYear,
-      selectedYearText: selectedYear === '全部' ? '全部年份' : `${selectedYear} 年`,
-      summary: Object.assign({}, summary, {
-        netText: money(summary.net),
-        avgNetText: money(summary.avgNet)
-      })
+      selectedYearText: selectedYear === '全部' ? '全部年份' : `${selectedYear} 年`
     })
   },
 
@@ -61,16 +65,35 @@ Page({
     return records.filter(item => item.month.indexOf(year) === 0)
   },
 
-  decorateRecords(records, template) {
-    return records.map(record => {
-      const grossName = (template.total || []).concat(template.income || []).find(name => name.indexOf('应发') >= 0)
-      const netName = (template.total || []).find(name => name.indexOf('实发') >= 0)
-      const deduct = deductAmount(record, template)
-      return Object.assign({}, record, {
-        grossText: money(grossName ? record.items[grossName] : 0),
-        deductText: money(deduct),
-        netText: money(netName ? record.items[netName] : 0)
-      })
+  // 按月分组；某格式开始录入后，之后月份缺少该格式时提示“未录入”
+  groupByMonth(records, allRecords, templates) {
+    const firstMonth = {}
+    allRecords.forEach(record => {
+      if (!firstMonth[record.format] || record.month < firstMonth[record.format]) firstMonth[record.format] = record.month
+    })
+
+    const months = Array.from(new Set(records.map(record => record.month))).sort((a, b) => b.localeCompare(a))
+    return months.map(month => {
+      const monthRecords = records
+        .filter(record => record.month === month)
+        .sort((a, b) => formats.FORMAT_IDS.indexOf(a.format) - formats.FORMAT_IDS.indexOf(b.format))
+        .map(record => this.decorateRecord(record, templates[record.format]))
+      const missing = formats.FORMAT_IDS
+        .filter(id => firstMonth[id] && month >= firstMonth[id] && !monthRecords.some(record => record.format === id))
+        .map(id => ({ format: id, name: formats.getFormat(id).name }))
+      return { month, records: monthRecords, missing }
+    })
+  },
+
+  decorateRecord(record, template) {
+    const totals = salary.recordTotals(record, template)
+    const config = formats.getFormat(record.format)
+    return Object.assign({}, record, {
+      formatName: config.name,
+      symbol: config.symbol,
+      grossText: money(totals.gross),
+      deductText: money(totals.deduct),
+      netText: money(totals.net)
     })
   },
 
@@ -81,6 +104,10 @@ Page({
 
   goScan() {
     wx.navigateTo({ url: '/pages/scan/scan' })
+  },
+
+  goScanFormat(event) {
+    wx.navigateTo({ url: `/pages/scan/scan?format=${event.currentTarget.dataset.format}` })
   },
 
   editRecord(event) {

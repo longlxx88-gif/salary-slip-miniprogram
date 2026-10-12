@@ -10,13 +10,13 @@
   ],
   "window": {
     "navigationBarTitleText": "工资台账",
-    "navigationBarBackgroundColor": "#f7f8fb",
+    "navigationBarBackgroundColor": "#f3f5f8",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#f7f8fb"
+    "backgroundColor": "#f3f5f8"
   },
   "tabBar": {
-    "color": "#8a8f98",
-    "selectedColor": "#1f7a68",
+    "color": "#8a93a3",
+    "selectedColor": "#0f766e",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [

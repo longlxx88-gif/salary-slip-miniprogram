@@ -1,51 +1,83 @@
-<view class="page">
-  <view class="panel status-panel">
-    <view>
-      <view class="section-title">校对状态</view>
-      <view class="{{validation.ok ? 'muted' : 'danger'}}">{{validation.message}}</view>
+<view class="page review">
+  <view class="status-card {{validation.ok ? 'ok' : 'bad'}}">
+    <view class="status-main">
+      <view class="status-head">
+        <view class="format-tag tag-{{format}}">{{formatName}}</view>
+        <text class="status-title">{{validation.ok ? '校对状态' : '金额不平衡'}}</text>
+      </view>
+      <view class="status-message">{{validation.message}}</view>
+      <view wx:for="{{warnings}}" wx:key="*this" class="warning-line">⚠ {{item}}</view>
     </view>
-    <view class="pill">待确认 {{pendingCount}}</view>
+    <view class="pending-badge {{pendingCount ? 'has' : ''}}">
+      <view class="pending-count num">{{pendingCount}}</view>
+      <view class="pending-label">待确认</view>
+    </view>
   </view>
 
-  <view class="panel">
-    <view class="field-label">月份</view>
-    <input value="{{draft.month}}" data-field="month" bindinput="updateMonth" placeholder="YYYY-MM" />
+  <view class="panel month-panel">
+    <view class="field-label">工资月份</view>
+    <input class="month-input num" value="{{draft.month}}" data-field="month" bindinput="updateMonth" placeholder="YYYY-MM" />
   </view>
 
-  <view class="panel image-panel">
-    <view class="image-header">
+  <view wx:if="{{!multiImage}}" class="panel image-panel">
+    <view class="panel-head">
       <view>
         <view class="section-title">工资条图片</view>
         <view class="muted">{{imagePath ? '点击图片可放大查看' : '可拍照或从相册选择，随记录一起保存'}}</view>
       </view>
-      <view class="image-actions">
-        <button class="mini-action" bindtap="chooseCamera">拍照</button>
-        <button class="mini-action" bindtap="chooseAlbum">相册</button>
+    </view>
+    <image wx:if="{{imagePath}}" class="slip-image" src="{{imagePath}}" mode="aspectFit" bindtap="previewImage"></image>
+    <view wx:else class="image-empty" bindtap="chooseCamera">暂无图片，点击拍照</view>
+    <view class="image-actions">
+      <view class="link-btn" bindtap="chooseCamera">拍照</view>
+      <view class="link-btn" bindtap="chooseAlbum">相册</view>
+      <view wx:if="{{imagePath}}" class="link-btn danger" bindtap="removeImage">移除</view>
+    </view>
+  </view>
+
+  <view wx:else class="panel image-panel">
+    <view class="panel-head">
+      <view class="section-title">工资截图</view>
+      <text class="muted">{{imagePaths.length}} 张</text>
+    </view>
+    <view class="thumb-grid">
+      <view wx:for="{{imagePaths}}" wx:key="*this" class="thumb">
+        <image src="{{item}}" mode="aspectFill" data-index="{{index}}" bindtap="previewImage"></image>
+        <view class="thumb-remove" data-index="{{index}}" catchtap="removeImageAt">×</view>
+      </view>
+      <view class="thumb thumb-add" bindtap="chooseAlbum">
+        <view class="thumb-add-icon">+</view>
+        <view class="muted">添加</view>
       </view>
     </view>
-    <image wx:if="{{imagePath}}" src="{{imagePath}}" mode="aspectFit" bindtap="previewImage"></image>
-    <view wx:else class="image-empty" bindtap="chooseCamera">暂无图片，点击拍照</view>
-    <button wx:if="{{imagePath}}" class="mini-remove" bindtap="removeImage">移除图片</button>
   </view>
 
   <view class="panel" wx:for="{{sections}}" wx:key="group">
-    <view class="section-title">{{item.title}}</view>
-    <view wx:for="{{item.items}}" wx:for-item="field" wx:key="id" class="field-row {{field.pending && !field.confirmed ? 'pending' : ''}}">
-      <view>
-        <input value="{{field.name}}" data-id="{{field.id}}" bindinput="updateName" />
-        <view wx:if="{{field.pending && !field.confirmed}}" class="danger">低置信度，需人工确认</view>
-      </view>
-      <view>
-        <input type="text" value="{{field.amount}}" data-id="{{field.id}}" bindinput="updateAmount" placeholder="可输入负数" />
-        <button wx:if="{{field.pending && !field.confirmed}}" class="mini-confirm" data-id="{{field.id}}" bindtap="confirmItem">确认</button>
-      </view>
+    <view class="section-head" data-collapsible="{{item.collapsible}}" bindtap="toggleInfo">
+      <text class="section-title">{{item.title}}</text>
+      <text wx:if="{{item.collapsible}}" class="collapse-hint">{{infoCollapsed ? '展开 ▾' : '收起 ▴'}}</text>
     </view>
+    <block wx:if="{{!item.collapsible || !infoCollapsed}}">
+      <view wx:for="{{item.items}}" wx:for-item="field" wx:key="id" class="field-row {{field.pending && !field.confirmed ? 'pending' : ''}}">
+        <view class="field-name">
+          <input class="name-input" value="{{field.name}}" data-id="{{field.id}}" bindinput="updateName" />
+          <view wx:if="{{field.pending && !field.confirmed}}" class="field-note">{{field.note || '低置信度，需人工确认'}}</view>
+        </view>
+        <view class="field-amount">
+          <input class="amount-input num" type="text" value="{{field.amount}}" data-id="{{field.id}}" bindinput="updateAmount" placeholder="—" />
+          <button wx:if="{{field.pending && !field.confirmed}}" class="mini-confirm" data-id="{{field.id}}" bindtap="confirmItem">确认无误</button>
+        </view>
+      </view>
+    </block>
   </view>
 
-  <view class="toolbar bottom-actions">
-    <button class="btn secondary" bindtap="addIncome">添加收入</button>
-    <button class="btn secondary" bindtap="addDeduct">添加扣除</button>
+  <view class="add-row">
+    <view class="add-btn" bindtap="addIncome">+ 添加收入项</view>
+    <view class="add-btn" bindtap="addDeduct">+ 添加扣除项</view>
   </view>
 
-  <button class="btn save" disabled="{{!canSave}}" bindtap="saveRecord">保存记录</button>
+  <view class="save-bar">
+    <view class="save-hint">{{canSave ? '确认无误后保存' : (pendingCount ? '还有 ' + pendingCount + ' 项待确认' : '请填写正确的月份（YYYY-MM）')}}</view>
+    <button class="btn save" disabled="{{!canSave}}" bindtap="saveRecord">保存记录</button>
+  </view>
 </view>

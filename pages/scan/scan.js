@@ -1,14 +1,52 @@
+const storage = require('../../utils/storage')
+const formats = require('../../utils/formats')
+
+const MAX_IMAGES = 9
+const OCR_CONCURRENCY = 3
+const UPLOAD_ATTEMPTS = 3
+const PAGE_ATTEMPTS = 2
+// 国内工资截图去水印：实测水印像素亮度 ≥ 153，正文为纯黑。
+// 亮度 ≥ 阈值的像素刷白，其余按比例保留灰度（不做硬二值化，避免笔画断裂）
+const WATERMARK_LUMINANCE = 150
+
+function markError(error, extra) {
+  const result = error instanceof Error ? error : new Error((error && (error.errMsg || error.message)) || String(error))
+  return Object.assign(result, extra)
+}
+
 Page({
   data: {
+    format: 'thai',
+    formatOptions: formats.formatList(),
+    multiImage: false,
     imagePath: '',
+    imagePaths: [],
     replaceId: '',
     recognizing: false,
+    progressText: '',
     canvasWidth: 320,
     canvasHeight: 320
   },
 
   onLoad(options) {
-    this.setData({ replaceId: options.replaceId || '' })
+    const replaceId = options.replaceId || ''
+    const record = replaceId ? storage.getRecords().find(item => item.id === replaceId) : null
+    const format = formats.normalizeFormat(options.format || (record && record.format) || storage.getLastFormat())
+    this.setData({ replaceId })
+    this.applyFormat(format)
+  },
+
+  applyFormat(format) {
+    const config = formats.getFormat(format)
+    this.setData({ format: config.id, multiImage: config.multiImage })
+    wx.setNavigationBarTitle({ title: config.multiImage ? `${config.name} · 截图识别` : `${config.name} · 拍照识别` })
+  },
+
+  switchFormat(event) {
+    if (this.data.recognizing) return
+    const format = event.currentTarget.dataset.format
+    storage.setLastFormat(format)
+    this.applyFormat(format)
   },
 
   chooseCamera() {
@@ -20,39 +58,243 @@ Page({
   },
 
   chooseImage(sourceType) {
+    const count = this.data.multiImage ? MAX_IMAGES - this.data.imagePaths.length : 1
+    if (count <= 0) {
+      wx.showToast({ title: `最多 ${MAX_IMAGES} 张`, icon: 'none' })
+      return
+    }
     wx.chooseMedia({
-      count: 1,
+      count,
       mediaType: ['image'],
       sourceType,
-      success: result => {
-        this.setData({ imagePath: result.tempFiles[0].tempFilePath })
-      },
+      success: result => this.addImages(result.tempFiles.map(file => file.tempFilePath)),
       fail: () => {
         wx.chooseImage({
-          count: 1,
+          count,
           sourceType,
-          success: result => this.setData({ imagePath: result.tempFilePaths[0] })
+          success: result => this.addImages(result.tempFilePaths)
         })
       }
     })
   },
 
-  recognize() {
-    this.setData({ recognizing: true })
-    this.prepareImageForUpload(this.data.imagePath)
-      .then(uploadPath => this.uploadAndCallOcr(uploadPath))
-      .catch(error => {
-        console.error('prepare image failed', error)
-        this.setData({ recognizing: false })
-        wx.showModal({
-          title: '图片过大',
-          content: error.message || '图片压缩失败，请裁剪后重试。',
-          showCancel: false
-        })
-      })
+  addImages(paths) {
+    if (!paths || !paths.length) return
+    if (this.data.multiImage) {
+      this.setData({ imagePaths: this.data.imagePaths.concat(paths).slice(0, MAX_IMAGES) })
+    } else {
+      this.setData({ imagePath: paths[0] })
+    }
   },
 
-  uploadAndCallOcr(uploadPath) {
+  removeImage(event) {
+    const index = Number(event.currentTarget.dataset.index)
+    this.setData({ imagePaths: this.data.imagePaths.filter((path, current) => current !== index) })
+  },
+
+  previewImage(event) {
+    const urls = this.data.multiImage ? this.data.imagePaths : [this.data.imagePath]
+    const index = Number(event.currentTarget.dataset.index || 0)
+    if (!urls.length || !urls[0]) return
+    wx.previewImage({ current: urls[index] || urls[0], urls })
+  },
+
+  recognize() {
+    if (this.data.multiImage) {
+      this.recognizePages()
+      return
+    }
+
+    this.setData({ recognizing: true, progressText: '' })
+    this.ocrImage(this.data.imagePath, '')
+      .then(ocrResult => this.openReview({ ocrResult }))
+      .catch(error => this.showOcrError(error, true))
+      .then(() => this.setData({ recognizing: false }))
+  },
+
+  // 国内格式：截图先压缩，再以 OCR_CONCURRENCY 张并发走通用文字识别，全部完成后合并校对
+  recognizePages() {
+    const paths = this.data.imagePaths.slice()
+    if (!paths.length) return
+    const results = []
+    const uploadedPaths = []
+    const failures = []
+    const startedAt = Date.now()
+    let nextIndex = 0
+    let finished = 0
+
+    this.setData({ recognizing: true, progressText: `识别中 0/${paths.length}` })
+    const worker = () => {
+      if (nextIndex >= paths.length) return Promise.resolve()
+      const index = nextIndex
+      nextIndex += 1
+      const pageStartedAt = Date.now()
+      // 整张失败时（上传/识别）从头再试一次
+      const attemptPage = attempt => this.ocrImage(uploadedPaths[index], 'cn').catch(error => {
+        if (attempt >= PAGE_ATTEMPTS) throw error
+        console.warn(`[ocr] 第 ${index + 1} 张失败，重试`, error)
+        return attemptPage(attempt + 1)
+      })
+      return this.cleanScreenshot(paths[index])
+        .then(path => {
+          uploadedPaths[index] = path
+          return attemptPage(1)
+        })
+        .then(result => {
+          results[index] = result
+          console.log(`[ocr] 第 ${index + 1} 张完成，用时 ${Date.now() - pageStartedAt}ms`)
+        })
+        .catch(error => {
+          console.error('ocr page failed', index, error)
+          failures.push(`第 ${index + 1} 张：${error.message || '识别失败'}`)
+        })
+        .then(() => {
+          finished += 1
+          this.setData({ progressText: `识别中 ${finished}/${paths.length}` })
+          return worker()
+        })
+    }
+
+    const workers = []
+    for (let count = 0; count < Math.min(OCR_CONCURRENCY, paths.length); count += 1) workers.push(worker())
+
+    Promise.all(workers).then(() => {
+      console.log(`[ocr] ${paths.length} 张全部完成，总用时 ${Date.now() - startedAt}ms`)
+      this.setData({ recognizing: false, progressText: '' })
+      const indexes = paths.map((path, index) => index).filter(index => results[index])
+      const ocrResults = indexes.map(index => results[index])
+      // 记录里保存压缩后的图片，减少后续云存储上传量
+      const imagePaths = indexes.map(index => uploadedPaths[index] || paths[index])
+      failures.sort()
+      if (!ocrResults.length) {
+        wx.showModal({ title: '识别失败', content: failures.join('\n') || '未知错误', showCancel: false })
+        return
+      }
+      if (!failures.length) {
+        this.openReview({ ocrResults, imagePaths })
+        return
+      }
+      wx.showModal({
+        title: `${failures.length} 张识别失败`,
+        content: `${failures.join('\n')}\n\n是否用其余 ${ocrResults.length} 张继续？`,
+        confirmText: '继续',
+        cancelText: '取消',
+        success: result => {
+          if (result.confirm) this.openReview({ ocrResults, imagePaths })
+        }
+      })
+    })
+  },
+
+  // 去水印后的灰度图文字更清晰、文件更小；处理失败时退回原图
+  cleanScreenshot(path) {
+    // 共用一个 canvas，必须排队处理
+    const task = (this.cleanQueue || Promise.resolve()).then(() => this.removeWatermark(path))
+    this.cleanQueue = task.catch(() => null)
+    return task.catch(error => {
+      console.warn('[ocr] 去水印失败，使用原图', error)
+      return path
+    })
+  },
+
+  getCleanCanvas() {
+    if (!this.cleanCanvasPromise) {
+      this.cleanCanvasPromise = new Promise((resolve, reject) => {
+        wx.createSelectorQuery().in(this).select('#cleanCanvas').fields({ node: true }).exec(result => {
+          const canvas = result && result[0] && result[0].node
+          if (canvas) resolve(canvas)
+          else reject(new Error('canvas 不可用'))
+        })
+      })
+      this.cleanCanvasPromise.catch(() => {
+        this.cleanCanvasPromise = null
+      })
+    }
+    return this.cleanCanvasPromise
+  },
+
+  removeWatermark(path) {
+    const startedAt = Date.now()
+    return this.getCleanCanvas().then(canvas => new Promise((resolve, reject) => {
+      const image = canvas.createImage()
+      image.onerror = reject
+      image.onload = () => {
+        try {
+          const width = image.width
+          const height = image.height
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(image, 0, 0, width, height)
+          const imageData = ctx.getImageData(0, 0, width, height)
+          const pixels = imageData.data
+          const scale = 255 / WATERMARK_LUMINANCE
+          for (let index = 0; index < pixels.length; index += 4) {
+            const luminance = 0.299 * pixels[index] + 0.587 * pixels[index + 1] + 0.114 * pixels[index + 2]
+            const value = luminance >= WATERMARK_LUMINANCE ? 255 : Math.round(luminance * scale)
+            pixels[index] = value
+            pixels[index + 1] = value
+            pixels[index + 2] = value
+            pixels[index + 3] = 255
+          }
+          ctx.putImageData(imageData, 0, 0)
+          wx.canvasToTempFilePath({
+            canvas,
+            fileType: 'png',
+            destWidth: width,
+            destHeight: height,
+            success: result => {
+              console.log(`[ocr] 去水印 ${width}x${height}，用时 ${Date.now() - startedAt}ms`)
+              resolve(result.tempFilePath)
+            },
+            fail: reject
+          })
+        } catch (error) {
+          reject(error)
+        }
+      }
+      image.src = path
+    }))
+  },
+
+  ocrImage(path, mode) {
+    return this.prepareImageForUpload(path)
+      .catch(error => {
+        throw markError(error, { title: '图片过大', message: error.message || '图片压缩失败，请裁剪后重试。' })
+      })
+      .then(uploadPath => this.uploadImage(uploadPath).then(
+        uploaded => this.invokeOcr({ imageUrl: uploaded.imageUrl }, mode).then(result => {
+          this.cleanupCloudFile(uploaded.fileID)
+          return result
+        }, error => {
+          this.cleanupCloudFile(uploaded.fileID)
+          throw error
+        }),
+        uploadError => {
+          console.warn('upload image url failed, fallback to base64', uploadError)
+          const reason = (uploadError && (uploadError.errMsg || uploadError.message)) || String(uploadError)
+          return this.readBase64(uploadPath)
+            .then(imageBase64 => this.invokeOcr({ imageBase64 }, mode))
+            .catch(error => {
+              // base64 兜底也失败时，真正原因通常是上传失败，一并展示便于排查
+              throw markError(error, { message: `上传云存储失败：${reason}\n（兜底也失败：${error.message}）` })
+            })
+        }
+      ))
+  },
+
+  // 手机网络下上传偶发失败，间隔重试
+  uploadImage(uploadPath, attempt) {
+    const current = attempt || 1
+    return this.uploadImageOnce(uploadPath).catch(error => {
+      if (current >= UPLOAD_ATTEMPTS) throw error
+      console.warn(`[ocr] 上传失败，第 ${current} 次重试`, error)
+      return new Promise(resolve => setTimeout(resolve, 800 * current))
+        .then(() => this.uploadImage(uploadPath, current + 1))
+    })
+  },
+
+  uploadImageOnce(uploadPath) {
     const cloudPath = `ocr-temp/${Date.now()}-${Math.floor(Math.random() * 100000)}.jpg`
     return wx.cloud.uploadFile({
       cloudPath,
@@ -65,89 +307,64 @@ Page({
         const item = urlResult.fileList && urlResult.fileList[0]
         const imageUrl = item && item.tempFileURL
         if (!imageUrl) throw new Error('获取临时图片链接失败')
-
-        return this.callOcr({
-          imageUrl,
-          cleanupFileID: fileID
-        })
+        return { imageUrl, fileID }
       }).catch(error => {
         this.cleanupCloudFile(fileID)
         throw error
       })
-    }).catch(error => {
-      console.warn('upload image url failed, fallback to base64', error)
-      return this.readAndCallOcr(uploadPath)
     })
   },
 
-  readAndCallOcr(uploadPath) {
-    wx.getFileSystemManager().readFile({
-      filePath: uploadPath,
-      encoding: 'base64',
-      success: file => {
-        console.log('ocr upload base64 length', file.data.length)
-        if (file.data.length > 380 * 1024) {
-          this.setData({ recognizing: false })
-          wx.showModal({
-            title: '图片仍然过大',
-            content: '图片压缩后仍超过云函数调用限制，请裁剪工资条主体后重试。',
-            showCancel: false
-          })
-          return
-        }
-
-        this.callOcr({ imageBase64: file.data })
-      },
-      fail: () => {
-        this.setData({ recognizing: false })
-        wx.showToast({ title: '读取图片失败', icon: 'none' })
-      }
+  readBase64(uploadPath) {
+    return new Promise((resolve, reject) => {
+      wx.getFileSystemManager().readFile({
+        filePath: uploadPath,
+        encoding: 'base64',
+        success: file => {
+          console.log('ocr upload base64 length', file.data.length)
+          if (file.data.length > 380 * 1024) {
+            reject(markError(new Error('图片压缩后仍超过云函数调用限制，请裁剪工资条主体后重试。'), { title: '图片仍然过大' }))
+            return
+          }
+          resolve(file.data)
+        },
+        fail: () => reject(markError(new Error('读取图片失败'), { title: '读取图片失败' }))
+      })
     })
   },
 
-  callOcr(payload) {
+  invokeOcr(payload, mode) {
     return wx.cloud.callFunction({
       name: 'ocr',
       data: {
         imageUrl: payload.imageUrl || '',
         imageBase64: payload.imageBase64 || '',
+        mode: mode || '',
         mock: false
-      },
-      success: result => {
-        const ocrResult = result.result || {}
-        if (ocrResult.ok === false) {
-          wx.showModal({
-            title: 'OCR 识别失败',
-            content: `${ocrResult.error || '未知错误'}\n\n已载入样例数据，可先验证校对流程。`,
-            showCancel: false,
-            success: () => this.openMockReview()
-          })
-          return
-        }
-        this.resolveOcrResult(ocrResult)
-          .then(fullResult => this.openReview(fullResult))
-          .catch(error => {
-            console.error('load full ocr result failed', error)
-            wx.showModal({
-              title: '读取 OCR 结果失败',
-              content: error.message || '无法从云端读取完整识别结果，请重试。',
-              showCancel: false
-            })
-          })
-      },
-      fail: error => {
-        console.error('ocr cloud function failed', error)
-        const message = error && (error.errMsg || error.message) ? (error.errMsg || error.message) : '云函数不可用'
-        wx.showModal({
-          title: '云函数不可用',
-          content: `${message}\n\n已载入样例数据，可先验证校对流程。`,
-          showCancel: false,
-          success: () => this.openMockReview()
-        })
-      },
-      complete: () => {
-        if (payload.cleanupFileID) this.cleanupCloudFile(payload.cleanupFileID)
-        this.setData({ recognizing: false })
+      }
+    }).then(result => {
+      const ocrResult = result.result || {}
+      if (ocrResult.ok === false) {
+        throw markError(new Error(ocrResult.error || '未知错误'), { title: 'OCR 识别失败', mockFallback: true })
+      }
+      return this.resolveOcrResult(ocrResult).catch(error => {
+        throw markError(error, { title: '读取 OCR 结果失败', message: error.message || '无法从云端读取完整识别结果，请重试。' })
+      })
+    }, error => {
+      console.error('ocr cloud function failed', error)
+      throw markError(error, { title: '云函数不可用', mockFallback: true })
+    })
+  },
+
+  showOcrError(error, allowMock) {
+    const mock = allowMock && error.mockFallback
+    const message = error.message || '未知错误'
+    wx.showModal({
+      title: error.title || '识别失败',
+      content: mock ? `${message}\n\n已载入样例数据，可先验证校对流程。` : message,
+      showCancel: false,
+      success: () => {
+        if (mock) this.openMockReview()
       }
     })
   },
@@ -168,13 +385,13 @@ Page({
     })
   },
 
-  openReview(ocrResult) {
-    const app = getApp()
-    app.globalData.pendingReview = {
+  openReview(payload) {
+    getApp().globalData.pendingReview = Object.assign({
       replaceId: this.data.replaceId,
+      format: this.data.format,
       imagePath: this.data.imagePath,
-      ocrResult
-    }
+      imagePaths: this.data.imagePaths
+    }, payload)
     wx.navigateTo({ url: '/pages/review/review' })
   },
 
@@ -189,7 +406,10 @@ Page({
   prepareImageForUpload(path) {
     return this.getFileSize(path).then(size => {
       if (size <= 4 * 1024 * 1024) return path
-      return this.compressByCanvas(path, 4 * 1024 * 1024)
+      // 压缩共用同一个 canvas，并发识别时必须排队
+      const task = (this.canvasQueue || Promise.resolve()).then(() => this.compressByCanvas(path, 4 * 1024 * 1024))
+      this.canvasQueue = task.catch(() => null)
+      return task
     })
   },
 
@@ -276,7 +496,9 @@ Page({
   openManualReview() {
     getApp().globalData.pendingReview = {
       replaceId: this.data.replaceId,
+      format: this.data.format,
       imagePath: this.data.imagePath,
+      imagePaths: this.data.imagePaths,
       manual: true
     }
     wx.navigateTo({ url: '/pages/review/review?manual=1' })
@@ -285,6 +507,7 @@ Page({
   openMockReview() {
     getApp().globalData.pendingReview = {
       replaceId: this.data.replaceId,
+      format: 'thai',
       imagePath: this.data.imagePath,
       ocrResult: {
         items: [
