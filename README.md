@@ -8,7 +8,7 @@
 - 首次识别自动生成收入/扣除/合计模板，模板管理与重置
 - 本地 Storage 存储记录、统计汇总、折线/饼图/柱状图 Canvas 初版
 - 隐私设置、置信度阈值、云备份开关占位
-- OCR 云函数中转，腾讯云 SecretId/SecretKey 不进入前端
+- OCR 云函数中转，优先 Azure Document Intelligence，回退腾讯云表格识别，密钥均不进入前端
 
 ## 使用方式
 
@@ -16,16 +16,21 @@
 2. 在 `project.config.json` 中替换正式小程序 `appid`。
 3. 开通微信云开发，并上传部署 `cloudfunctions/ocr`。
 4. 在云开发数据库创建集合 `ocr_results`，用于保存完整 OCR 识别结果。
-5. 在云函数环境变量中设置：
-   - `TENCENT_SECRET_ID`
-   - `TENCENT_SECRET_KEY`
-   - `TENCENT_REGION`，默认 `ap-guangzhou`
+5. 在云函数环境变量中设置（Azure 与腾讯云至少配置一组，两组都配置时优先使用 Azure）：
+   - Azure Document Intelligence（推荐）：
+     - `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT`
+     - `AZURE_DOCUMENT_INTELLIGENCE_KEY`
+     - `AZURE_DOCUMENT_INTELLIGENCE_API_VERSION`，可选，默认 `2024-11-30`
+   - 腾讯云（回退）：
+     - `TENCENT_SECRET_ID`
+     - `TENCENT_SECRET_KEY`
+     - `TENCENT_REGION`，默认 `ap-guangzhou`
 6. 建议将 `ocr` 云函数超时时间设置为 30 秒，复杂表格识别后需要写入数据库。
 7. 未配置云函数或密钥时，小程序会使用样例 OCR 数据，便于先验证校对、保存、统计流程。
 
 ## 说明
 
-初版未集成本地 OCR、WASM 推理或离线模型。前端会先压缩图片并上传到云存储临时路径，再将临时 URL 传给云函数；云函数调用腾讯云表格识别接口 `RecognizeTableAccurateOCR`。统计图表当前使用原生 Canvas 实现，后续可替换为 ECharts For 微信小程序组件。
+初版未集成本地 OCR、WASM 推理或离线模型。前端会先压缩图片并上传到云存储临时路径，再将临时 URL 传给云函数；云函数优先调用 Azure Document Intelligence `prebuilt-layout`（需要图片 URL），未配置 Azure 时回退腾讯云表格识别接口 `RecognizeTableAccurateOCR`。Azure 配置、识别效果优化和拍摄建议详见 [OCR-README.md](OCR-README.md)。统计图表当前使用原生 Canvas 实现，后续可替换为 ECharts For 微信小程序组件。
 
 ## 云函数不可用排查
 
@@ -35,18 +40,19 @@
 2. 右键 `cloudfunctions/ocr`，选择“上传并部署：云端安装依赖”。
 3. 在云开发控制台确认存在名为 `ocr` 的云函数，不是 `OCR` 或其他名字。
 4. 云开发数据库建议存在 `ocr_results` 集合；若缺失，识别仍可回退旧流程，但无法保存完整 OCR 调试结果。
-5. 云函数环境变量必须设置 `TENCENT_SECRET_ID`、`TENCENT_SECRET_KEY`，可选 `TENCENT_REGION=ap-guangzhou`。
+5. 云函数环境变量至少设置一组 OCR 密钥：Azure 的 `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT`、`AZURE_DOCUMENT_INTELLIGENCE_KEY`，或腾讯云的 `TENCENT_SECRET_ID`、`TENCENT_SECRET_KEY`（可选 `TENCENT_REGION=ap-guangzhou`）。
 6. 在开发者工具控制台查看 `ocr cloud function failed` 后面的真实错误。
-7. 在云开发控制台查看 `ocr` 云函数日志，正常会看到：
+7. 在云开发控制台查看 `ocr` 云函数日志，正常会看到（使用 Azure 时 `azure exists` 为 `true`，使用腾讯云时 `secretId`/`secretKey` 为 `true`）：
+   - `[OCR] azure exists: true`
    - `[OCR] secretId exists: true`
    - `[OCR] secretKey exists: true`
    - `[OCR] region: ap-guangzhou`
 
-当前云函数已经做了保护：如果未设置腾讯云密钥，会返回样例 OCR 数据；如果腾讯云 OCR 调用失败，会返回具体错误信息并在前端弹窗展示。
+当前云函数已经做了保护：如果 Azure 和腾讯云密钥都未设置，会返回样例 OCR 数据；如果 OCR 调用失败，会返回具体错误信息并在前端弹窗展示。
 
 ## OCR 接口参数
 
-当前云函数使用腾讯云表格识别接口：
+未配置 Azure 时，云函数使用腾讯云表格识别接口：
 
 - `Action=RecognizeTableAccurateOCR`
 - 优先传 `ImageUrl`
