@@ -6,6 +6,7 @@ const OCR_HOST = 'ocr.tencentcloudapi.com'
 const OCR_SERVICE = 'ocr'
 const OCR_VERSION = '2018-11-19'
 const OCR_ACTION = 'RecognizeTableAccurateOCR'
+const OCR_GENERAL_ACTION = 'GeneralAccurateOCR'
 const AZURE_API_VERSION = process.env.AZURE_DOCUMENT_INTELLIGENCE_API_VERSION || '2024-11-30'
 const UPLOAD_URL_MAX_BASE64 = 9 * 1024 * 1024
 const OCR_RESULT_COLLECTION = 'ocr_results'
@@ -53,11 +54,11 @@ function formatDate(timestamp) {
   return new Date(timestamp * 1000).toISOString().slice(0, 10)
 }
 
-function buildAuthorization({ secretId, secretKey, timestamp, payload }) {
+function buildAuthorization({ secretId, secretKey, timestamp, payload, action }) {
   const algorithm = 'TC3-HMAC-SHA256'
   const date = formatDate(timestamp)
   const credentialScope = `${date}/${OCR_SERVICE}/tc3_request`
-  const canonicalHeaders = `content-type:application/json; charset=utf-8\nhost:${OCR_HOST}\nx-tc-action:${OCR_ACTION.toLowerCase()}\n`
+  const canonicalHeaders = `content-type:application/json; charset=utf-8\nhost:${OCR_HOST}\nx-tc-action:${action.toLowerCase()}\n`
   const signedHeaders = 'content-type;host;x-tc-action'
   const canonicalRequest = [
     'POST',
@@ -81,13 +82,12 @@ function buildAuthorization({ secretId, secretKey, timestamp, payload }) {
   return `${algorithm} Credential=${secretId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
 }
 
-function postTencentOcr({ secretId, secretKey, region, imageBase64, imageUrl }) {
-  const payloadBody = imageUrl
-    ? { ImageUrl: imageUrl, UseNewModel: false }
-    : { ImageBase64: imageBase64, UseNewModel: false }
+function postTencentOcr({ secretId, secretKey, region, imageBase64, imageUrl, action = OCR_ACTION }) {
+  const payloadBody = imageUrl ? { ImageUrl: imageUrl } : { ImageBase64: imageBase64 }
+  if (action === OCR_ACTION) payloadBody.UseNewModel = false
   const payload = JSON.stringify(payloadBody)
   const timestamp = Math.floor(Date.now() / 1000)
-  const authorization = buildAuthorization({ secretId, secretKey, timestamp, payload })
+  const authorization = buildAuthorization({ secretId, secretKey, timestamp, payload, action })
 
   return new Promise((resolve, reject) => {
     const request = https.request({
@@ -98,7 +98,7 @@ function postTencentOcr({ secretId, secretKey, region, imageBase64, imageUrl }) 
         Authorization: authorization,
         'Content-Type': 'application/json; charset=utf-8',
         Host: OCR_HOST,
-        'X-TC-Action': OCR_ACTION,
+        'X-TC-Action': action,
         'X-TC-Version': OCR_VERSION,
         'X-TC-Timestamp': String(timestamp),
         'X-TC-Region': region
@@ -347,6 +347,29 @@ function normalizeTableResponse(response) {
   }
 }
 
+function normalizeGeneralResponse(response) {
+  const lines = (response.TextDetections || [])
+    .map((detection, index) => Object.assign(normalizeDetection(detection, index), {
+      polygon: detection.Polygon || []
+    }))
+    .filter(line => line.text)
+
+  return {
+    angle: Number(response.Angel || response.Angle || 0),
+    lines,
+    items: lines.map((line, index) => ({
+      id: `line_${index}`,
+      text: line.text,
+      x: line.x,
+      y: line.y,
+      width: line.width,
+      height: line.height,
+      wordConfidence: line.confidences,
+      confidences: line.confidences
+    }))
+  }
+}
+
 function resultSize(result) {
   return Buffer.byteLength(JSON.stringify(result), 'utf8')
 }
@@ -555,6 +578,35 @@ exports.main = async event => {
     console.log('[OCR] secretId exists:', Boolean(secretId))
     console.log('[OCR] secretKey exists:', Boolean(secretKey))
     console.log('[OCR] region:', region)
+
+    // general：只做通用文字识别；cn：国内工资截图，通用识别 + 表格识别并行，前端合并互补
+    if (event.mode === 'general' || event.mode === 'cn') {
+      if (!secretId || !secretKey) return { ok: false, error: '通用文字识别需要配置腾讯云密钥' }
+      const credentials = { secretId, secretKey, region, imageBase64, imageUrl }
+      const [general, table] = await Promise.all([
+        postTencentOcr(Object.assign({ action: OCR_GENERAL_ACTION }, credentials)),
+        event.mode === 'cn'
+          ? postTencentOcr(Object.assign({ action: OCR_ACTION }, credentials)).catch(error => ({ error }))
+          : Promise.resolve(null)
+      ])
+      const result = {
+        ok: true,
+        mock: false,
+        provider: 'tencent-general',
+        requestId: general.RequestId,
+        action: OCR_GENERAL_ACTION,
+        ...normalizeGeneralResponse(general)
+      }
+      if (table && table.error) {
+        console.warn('[OCR] table ocr failed:', table.error)
+        result.tableError = table.error.message || String(table.error)
+      } else if (table) {
+        const normalizedTable = normalizeTableResponse(table)
+        result.tables = normalizedTable.tables
+        result.tableCells = normalizedTable.tableCells
+      }
+      return persistAndShapeResult(result)
+    }
 
     if (azureEndpoint && azureKey && imageUrl) {
       const response = await postAzureLayout({ endpoint: azureEndpoint, key: azureKey, imageUrl })

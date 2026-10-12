@@ -1,46 +1,65 @@
-<view class="page">
-  <view class="panel">
-    <view class="summary-grid">
+<view class="page home">
+  <view class="home-header">
+    <view>
+      <view class="eyebrow">工资台账</view>
+      <view class="headline">{{selectedYearText}}</view>
+    </view>
+    <picker mode="selector" range="{{yearOptions}}" bindchange="changeYear">
+      <view class="picker">切换年份 ▾</view>
+    </picker>
+  </view>
+
+  <view wx:for="{{summaries}}" wx:key="format" class="hero hero-{{item.format}}">
+    <view class="hero-top">
+      <text class="hero-name">{{item.name}}</text>
+      <text class="hero-currency">{{item.currency}}</text>
+    </view>
+    <view class="hero-label">累计实发</view>
+    <view class="hero-amount num">{{item.symbol}} {{item.netText}}</view>
+    <view class="hero-foot">
       <view>
-        <view class="muted">记录数</view>
-        <view class="metric">{{summary.count}}</view>
+        <view class="hero-foot-label">记录</view>
+        <view class="hero-foot-value num">{{item.count}} 个月</view>
       </view>
       <view>
-        <view class="muted">累计实发</view>
-        <view class="metric">¥{{summary.netText}}</view>
-      </view>
-      <view>
-        <view class="muted">月均实发</view>
-        <view class="metric">¥{{summary.avgNetText}}</view>
+        <view class="hero-foot-label">月均实发</view>
+        <view class="hero-foot-value num">{{item.symbol}} {{item.avgNetText}}</view>
       </view>
     </view>
   </view>
 
-  <view class="panel">
-    <view class="filter-row">
-      <picker mode="selector" range="{{yearOptions}}" bindchange="changeYear">
-        <view class="picker">{{selectedYearText}}</view>
-      </picker>
-    </view>
-  </view>
-
-  <view wx:if="{{records.length === 0}}" class="empty">
+  <view wx:if="{{groups.length === 0}}" class="empty">
+    <view class="empty-icon">+</view>
     <view class="section-title">暂无工资记录</view>
-    <view class="muted">点击“新增工资条”，可 OCR 识别，也可在里面手动添加并保存图片。</view>
+    <view class="muted">点击右下角“+”新增工资条，可 OCR 识别，也可手动录入。</view>
   </view>
 
-  <view wx:for="{{records}}" wx:key="id" class="record">
-    <view class="record-main">
-      <view>
-        <view class="record-month">{{item.month}}</view>
-        <view class="muted">应发 ¥{{item.grossText}} · 扣除 ¥{{item.deductText}}</view>
+  <view wx:for="{{groups}}" wx:for-item="group" wx:key="month" class="month-group">
+    <view class="month-title num">{{group.month}}</view>
+
+    <view wx:for="{{group.records}}" wx:key="id" class="record">
+      <view class="record-main" data-id="{{item.id}}" bindtap="editRecord">
+        <view class="record-left">
+          <view class="format-tag tag-{{item.format}}">{{item.formatName}}</view>
+          <view class="record-sub num">应发 {{item.grossText}}</view>
+          <view class="record-sub num">扣除 {{item.deductText}}</view>
+        </view>
+        <view class="record-right">
+          <view class="record-net-label">实发</view>
+          <view class="record-net num">{{item.symbol}} {{item.netText}}</view>
+        </view>
       </view>
-      <view class="record-net">¥{{item.netText}}</view>
+      <view class="record-actions">
+        <view class="action" data-id="{{item.id}}" bindtap="editRecord">编辑</view>
+        <view class="action" data-id="{{item.id}}" bindtap="rescanRecord">重拍覆盖</view>
+        <view class="action danger" data-id="{{item.id}}" bindtap="deleteRecord">删除</view>
+      </view>
     </view>
-    <view class="record-actions">
-      <button class="mini" data-id="{{item.id}}" bindtap="editRecord">编辑</button>
-      <button class="mini" data-id="{{item.id}}" bindtap="rescanRecord">重拍覆盖</button>
-      <button class="mini danger-text" data-id="{{item.id}}" bindtap="deleteRecord">删除</button>
+
+    <view wx:for="{{group.missing}}" wx:key="format" class="record missing" data-format="{{item.format}}" bindtap="goScanFormat">
+      <view class="format-tag tag-{{item.format}}">{{item.name}}</view>
+      <text class="missing-text">本月未录入</text>
+      <text class="missing-link">去录入 ›</text>
     </view>
   </view>
 

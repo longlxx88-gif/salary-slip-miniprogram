@@ -1,3 +1,10 @@
+const formats = require('./formats')
+const cnSlip = require('./cnSlip')
+
+function isCn(format) {
+  return formats.normalizeFormat(format) === 'cn'
+}
+
 const SALARY_TEMPLATE_ORDER = {
   income: [
     '基本工资',
@@ -156,7 +163,8 @@ function uniqueNames(names) {
   return result
 }
 
-function getOrderedTemplate(template) {
+function getOrderedTemplate(template, format) {
+  if (isCn(format)) return cnSlip.getOrderedTemplate(template)
   const cleanIncomeItems = ((template && template.income) || [])
     .filter(name => !isIgnored(name))
   const totalItems = (template && template.total) || []
@@ -171,7 +179,8 @@ function getOrderedTemplate(template) {
   }
 }
 
-function templateGroups() {
+function templateGroups(format) {
+  if (isCn(format)) return cnSlip.GROUPS.slice()
   return ['income', 'deduct', 'total', 'annual']
 }
 
@@ -435,7 +444,8 @@ function createBlankItem(group, name) {
   }
 }
 
-function completeTemplateItems(items, template) {
+function completeTemplateItems(items, template, format) {
+  if (isCn(format)) return cnSlip.completeItems(items, template)
   const byName = {}
   ;(items || []).forEach(item => {
     if (isIgnored(item.name)) return
@@ -554,7 +564,8 @@ function relocateLikelyGross(items) {
   candidate.group = 'income'
 }
 
-function validateItems(items) {
+function validateItems(items, format) {
+  if (isCn(format)) return cnSlip.validate(items)
   const gross = findAmount(items, '应发')
   const net = findAmount(items, '实发')
   const deductTotal = findDeductTotal(items)
@@ -588,6 +599,7 @@ function findAmount(items, keyword) {
 }
 
 function recordFromDraft(draft) {
+  if (isCn(draft.format)) return cnSlip.recordFromDraft(draft)
   const items = {}
   draft.items.forEach(item => {
     if (isIgnored(item.name)) return
@@ -596,6 +608,7 @@ function recordFromDraft(draft) {
   return {
     id: draft.id || `${draft.month}_${Date.now()}`,
     month: draft.month,
+    format: 'thai',
     items,
     imagePath: draft.imagePath || '',
     createdAt: draft.createdAt || Date.now(),
@@ -603,7 +616,34 @@ function recordFromDraft(draft) {
   }
 }
 
-function summarize(records, template) {
+// 单条记录的应发/扣除/实发，按记录自身的格式取值
+function recordTotals(record, template) {
+  if (isCn(formats.recordFormat(record))) return cnSlip.recordTotals(record, template)
+  const items = (record && record.items) || {}
+  const grossName = (template.total || []).concat(template.income || []).find(name => name.indexOf('应发') >= 0)
+  const netName = (template.total || []).find(name => name.indexOf('实发') >= 0)
+  return {
+    gross: Number(grossName ? items[grossName] || 0 : 0),
+    deduct: sumDeduct([record], template.deduct || []),
+    net: Number(netName ? items[netName] || 0 : 0)
+  }
+}
+
+function summarize(records, template, format) {
+  if (isCn(format)) {
+    const totals = records.map(record => cnSlip.recordTotals(record, template))
+    const sum = key => totals.reduce((total, item) => total + item[key], 0)
+    const gross = sum('gross')
+    const net = sum('net')
+    return {
+      count: records.length,
+      gross,
+      net,
+      deduct: sum('deduct'),
+      avgGross: records.length ? gross / records.length : 0,
+      avgNet: records.length ? net / records.length : 0
+    }
+  }
   const incomeNames = template.income || []
   const deductNames = template.deduct || []
   const totalGrossNames = (template.total || []).concat(incomeNames).filter(name => name.indexOf('应发') >= 0)
@@ -646,6 +686,7 @@ module.exports = {
   buildDraft,
   validateItems,
   recordFromDraft,
+  recordTotals,
   summarize,
   getOrderedTemplate,
   sortItems,

@@ -1,26 +1,137 @@
 .preview-panel {
-  min-height: 760rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 720rpx;
+  padding: 16rpx;
 }
 
 .preview {
   width: 100%;
-  height: 720rpx;
+  height: 700rpx;
+  border-radius: var(--radius-sm);
 }
 
 .placeholder {
-  color: #6d7480;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 680rpx;
+  border: 2rpx dashed #cfd6df;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  text-align: center;
+}
+
+.placeholder-icon {
+  width: 120rpx;
+  height: 120rpx;
+  margin-bottom: 24rpx;
+  line-height: 120rpx;
+  border-radius: 999rpx;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 60rpx;
+}
+
+.placeholder-title {
+  margin-bottom: 8rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.tip-panel {
+  background: var(--cn-soft);
+  box-shadow: none;
+}
+
+.tip-title {
+  margin-bottom: 12rpx;
+  color: var(--cn);
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.tip-list {
+  color: var(--ink-2);
+  font-size: 24rpx;
+  line-height: 1.8;
+}
+
+.thumb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
+}
+
+.thumb {
+  position: relative;
+  height: 300rpx;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.thumb image {
+  width: 100%;
+  height: 100%;
+}
+
+.thumb-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx dashed #cfd6df;
+  box-sizing: border-box;
+}
+
+.thumb-add-icon {
+  color: var(--primary);
+  font-size: 56rpx;
+  line-height: 1.2;
+}
+
+.thumb-index,
+.thumb-remove {
+  position: absolute;
+  top: 10rpx;
+  min-width: 40rpx;
+  height: 40rpx;
+  line-height: 40rpx;
+  border-radius: 999rpx;
+  text-align: center;
+  font-size: 22rpx;
+  color: #fff;
+  background: rgba(23, 32, 51, 0.55);
+}
+
+.thumb-index {
+  left: 10rpx;
+}
+
+.thumb-remove {
+  right: 10rpx;
+  background: rgba(209, 67, 67, 0.9);
 }
 
 .recognize {
-  width: 100%;
+  margin-top: 8rpx;
 }
 
 .manual {
-  width: 100%;
-  margin-top: 16rpx;
+  margin-top: 28rpx;
+  text-align: center;
+  color: var(--ink-2);
+  font-size: 26rpx;
 }
 
 .compress-canvas {

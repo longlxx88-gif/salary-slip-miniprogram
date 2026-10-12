@@ -1,5 +1,6 @@
 const storage = require('../../utils/storage')
 const salary = require('../../utils/salary')
+const formats = require('../../utils/formats')
 
 Page({
   goTemplate() {
@@ -17,10 +18,22 @@ Page({
       return
     }
 
-    const template = salary.getOrderedTemplate(storage.getTemplate())
-    const headers = ['月份'].concat(template.income || [], template.deduct || [], template.total || [], template.annual || [])
+    // 各格式字段取并集；“格式/币种”列区分泰国与国内记录
+    const fieldNames = []
+    formats.FORMAT_IDS.forEach(id => {
+      const template = storage.getTemplate(id)
+      salary.templateGroups(id).forEach(group => {
+        ;(template[group] || []).forEach(name => {
+          if (fieldNames.indexOf(name) < 0) fieldNames.push(name)
+        })
+      })
+    })
+    const headers = ['月份', '格式', '币种'].concat(fieldNames)
     const rows = records.map(record => {
-      return headers.map(header => header === '月份' ? record.month : record.items[header] === undefined ? '' : record.items[header])
+      const config = formats.getFormat(record.format)
+      return [record.month, config.name, config.currency].concat(fieldNames.map(name => {
+        return record.items[name] === undefined ? '' : record.items[name]
+      }))
     })
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n')
     const path = `${wx.env.USER_DATA_PATH}/salary-records.csv`

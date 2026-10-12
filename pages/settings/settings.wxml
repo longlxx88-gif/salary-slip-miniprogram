@@ -1,21 +1,44 @@
-<view class="page">
-  <view class="panel">
-    <view class="section-title">置信度阈值</view>
-    <slider min="50" max="95" step="1" value="{{settings.confidenceThreshold}}" show-value bindchange="changeThreshold" />
-    <view class="muted">低于该值的金额字符会标记为待确认。</view>
-  </view>
-
-  <view class="panel">
-    <view class="section-title">访问密码</view>
-    <input password value="{{settings.privacyPassword}}" placeholder="留空则不启用" bindinput="changePassword" />
-  </view>
-
-  <view class="panel switch-row">
-    <view>
-      <view class="section-title">加密云备份</view>
-      <view class="muted">初版保留开关，默认纯本地存储。</view>
+<view class="page settings">
+  <view class="group-title">云备份</view>
+  <view class="panel list-panel">
+    <view class="switch-row">
+      <view class="switch-text">
+        <view class="row-title">自动云备份</view>
+        <view class="muted">记录、模板和设置变化后自动备份；删除小程序或换手机后，同一微信账号可自动恢复。</view>
+      </view>
+      <switch checked="{{settings.cloudBackup}}" color="#0f766e" bindchange="changeBackup" />
     </view>
-    <switch checked="{{settings.cloudBackup}}" bindchange="changeBackup" />
+    <view class="switch-row">
+      <view class="switch-text">
+        <view class="row-title">图片云备份</view>
+        <view class="muted">保存记录时把工资条图片上传到云存储，恢复后仍可查看。</view>
+      </view>
+      <switch checked="{{settings.cloudImageBackup}}" color="#0f766e" bindchange="changeImageBackup" />
+    </view>
+  </view>
+
+  <view class="panel backup-panel">
+    <view class="backup-status">
+      <view class="status-dot {{lastBackupText ? 'on' : ''}}"></view>
+      <text class="muted">{{lastBackupText ? '本机最近备份：' + lastBackupText : '本机尚未备份过'}}</text>
+    </view>
+    <view class="toolbar backup-actions">
+      <button class="btn secondary" disabled="{{working}}" bindtap="backupNow">立即备份</button>
+      <button class="btn secondary" disabled="{{working}}" bindtap="restoreFromCloud">从云端恢复</button>
+    </view>
+  </view>
+
+  <view class="group-title">识别</view>
+  <view class="panel">
+    <view class="row-title">置信度阈值</view>
+    <slider min="50" max="95" step="1" value="{{settings.confidenceThreshold}}" activeColor="#0f766e" block-size="22" show-value bindchange="changeThreshold" />
+    <view class="muted">泰国工资条中低于该值的金额会标记为待确认。</view>
+  </view>
+
+  <view class="group-title">隐私</view>
+  <view class="panel">
+    <view class="row-title">访问密码</view>
+    <input class="password-input" password value="{{settings.privacyPassword}}" placeholder="留空则不启用" bindinput="changePassword" />
   </view>
 
   <button class="btn" bindtap="save">保存设置</button>

@@ -3,64 +3,114 @@
 }
 
 .profile-card {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
-  gap: 20rpx;
-  padding: 30rpx 26rpx;
-  margin-bottom: 20rpx;
-  border-radius: 24rpx;
-  background: linear-gradient(135deg, #1f7a68 0%, #4fb39e 100%);
+  gap: 24rpx;
+  margin-bottom: 32rpx;
+  padding: 40rpx 32rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #172033 0%, #2b3a55 100%);
   color: #fff;
-  box-shadow: 0 18rpx 42rpx rgba(31, 122, 104, 0.18);
+  box-shadow: 0 16rpx 40rpx rgba(23, 32, 51, 0.22);
 }
 
-.profile-card .muted {
-  color: rgba(255, 255, 255, 0.78);
+.profile-card::after {
+  content: '';
+  position: absolute;
+  right: -60rpx;
+  bottom: -100rpx;
+  width: 260rpx;
+  height: 260rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .avatar {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 92rpx;
-  height: 92rpx;
+  flex-shrink: 0;
+  width: 96rpx;
+  height: 96rpx;
   border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--primary);
   font-size: 42rpx;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .title {
-  font-size: 40rpx;
-  font-weight: 800;
-  margin-bottom: 8rpx;
+  font-size: 38rpx;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin-top: 4rpx;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 24rpx;
+}
+
+.menu-group-title {
+  margin: 0 8rpx 12rpx;
+  color: var(--muted);
+  font-size: 24rpx;
 }
 
 .menu-panel {
-  padding: 0;
+  padding: 0 28rpx;
   overflow: hidden;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 18rpx;
-  padding: 28rpx 24rpx;
-  border-bottom: 1rpx solid #edf0f4;
+  gap: 24rpx;
+  padding: 28rpx 0;
+  border-bottom: 2rpx solid var(--line);
 }
 
 .menu-item:last-child {
   border-bottom: 0;
 }
 
+.menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  font-size: 34rpx;
+}
+
+.icon-export {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.icon-template {
+  background: #eef0ff;
+  color: #5b6bd6;
+}
+
+.icon-settings {
+  background: var(--cn-soft);
+  color: var(--cn);
+}
+
+.menu-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .menu-title {
-  font-size: 31rpx;
-  font-weight: 700;
-  margin-bottom: 8rpx;
+  font-size: 30rpx;
+  font-weight: 600;
 }
 
 .arrow {
-  color: #a2a9b3;
-  font-size: 46rpx;
+  color: #c2c8d0;
+  font-size: 40rpx;
 }

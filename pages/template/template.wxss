@@ -1,7 +1,14 @@
 .template-row {
-  margin-bottom: 14rpx;
+  margin-bottom: 12rpx;
 }
 
 .add-btn {
-  margin: 4rpx 0 0;
+  margin-top: 8rpx;
+  min-height: 72rpx;
+  line-height: 72rpx;
+  font-size: 26rpx;
+}
+
+.reset-btn {
+  margin-top: 8rpx;
 }

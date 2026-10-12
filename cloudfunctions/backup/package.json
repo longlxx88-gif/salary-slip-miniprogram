@@ -1,0 +1,9 @@
+{
+  "name": "salary-slip-backup",
+  "version": "1.0.0",
+  "description": "工资台账云端备份与恢复",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "latest"
+  }
+}

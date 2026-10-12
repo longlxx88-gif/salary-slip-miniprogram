@@ -1,6 +1,57 @@
+.group-title {
+  margin: 8rpx 8rpx 12rpx;
+  color: var(--muted);
+  font-size: 24rpx;
+}
+
+.list-panel {
+  padding: 0 28rpx;
+}
+
 .switch-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20rpx;
+  gap: 24rpx;
+  padding: 28rpx 0;
+  border-bottom: 2rpx solid var(--line);
+}
+
+.switch-row:last-child {
+  border-bottom: none;
+}
+
+.switch-text {
+  min-width: 0;
+}
+
+.row-title {
+  margin-bottom: 6rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.backup-status {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.status-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #c2c8d0;
+}
+
+.status-dot.on {
+  background: var(--primary);
+}
+
+.backup-actions {
+  margin: 20rpx 0 0;
+}
+
+.password-input {
+  margin-top: 12rpx;
 }
