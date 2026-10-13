@@ -6,7 +6,9 @@
     "pages/scan/scan",
     "pages/review/review",
     "pages/template/template",
-    "pages/settings/settings"
+    "pages/settings/settings",
+    "pages/card/card",
+    "pages/format/format"
   ],
   "window": {
     "navigationBarTitleText": "工资台账",

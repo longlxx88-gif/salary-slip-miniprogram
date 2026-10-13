@@ -49,12 +49,15 @@ function ensureDefaults() {
   if (!wx.getStorageSync(KEYS.settings)) set(KEYS.settings, DEFAULT_SETTINGS)
 }
 
+// 泰国公司沿用原 key；国内公司 salary_template_v1_cn；新增公司 salary_template_v1_<公司 id>
 function templateKey(format) {
-  return formats.normalizeFormat(format) === 'cn' ? KEYS.templateCn : KEYS.template
+  if (!format || format === 'thai') return KEYS.template
+  if (format === 'cn') return KEYS.templateCn
+  return `${KEYS.template}_${format}`
 }
 
 function getTemplate(format) {
-  const fallback = formats.normalizeFormat(format) === 'cn' ? {} : DEFAULT_TEMPLATE
+  const fallback = !format || format === 'thai' ? DEFAULT_TEMPLATE : {}
   return salary.getOrderedTemplate(get(templateKey(format), fallback), format)
 }
 
@@ -113,30 +116,49 @@ function setSyncMeta(patch) {
 }
 
 // 与云函数 backup / 集合 salary_backups 的 snapshot 结构保持兼容：
-// records/settings/template 为原有字段，templates 为新增的其他格式模板
+// records/settings/template 为原有字段；templates 为其他公司模板（按公司 id）；formats 为公司配置
 function getSnapshot() {
+  const templates = {}
+  formats.allFormats()
+    .filter(config => config.id !== 'thai')
+    .forEach(config => {
+      templates[config.id] = getTemplate(config.id)
+    })
   return {
     records: get(KEYS.records, []),
     settings: getSettings(),
     template: getTemplate('thai'),
-    templates: {
-      cn: getTemplate('cn')
-    }
+    templates,
+    formats: formats.getStoredConfigs()
   }
 }
 
 function applySnapshot(snapshot) {
   if (!snapshot) return
+  // 先恢复公司配置，后面的模板才能按正确的公司规则整理
+  if (snapshot.formats && typeof snapshot.formats === 'object') formats.applyStoredConfigs(snapshot.formats)
   if (Array.isArray(snapshot.records)) set(KEYS.records, snapshot.records)
   if (snapshot.template && typeof snapshot.template === 'object') {
     set(KEYS.template, salary.getOrderedTemplate(snapshot.template))
   }
-  if (snapshot.templates && snapshot.templates.cn) {
-    set(KEYS.templateCn, salary.getOrderedTemplate(snapshot.templates.cn, 'cn'))
-  }
+  Object.keys(snapshot.templates || {}).forEach(id => {
+    if (id === 'thai' || !snapshot.templates[id]) return
+    set(templateKey(id), salary.getOrderedTemplate(snapshot.templates[id], id))
+  })
   if (snapshot.settings && typeof snapshot.settings === 'object') {
     set(KEYS.settings, Object.assign({}, DEFAULT_SETTINGS, snapshot.settings))
   }
+}
+
+// 删除公司时清理其模板
+function removeTemplate(format) {
+  if (!format || format === 'thai' || format === 'cn') return
+  try {
+    wx.removeStorageSync(templateKey(format))
+  } catch (error) {
+    // 忽略：模板不存在
+  }
+  notifyChange()
 }
 
 module.exports = {
@@ -157,5 +179,6 @@ module.exports = {
   getSyncMeta,
   setSyncMeta,
   getSnapshot,
-  applySnapshot
+  applySnapshot,
+  removeTemplate
 }

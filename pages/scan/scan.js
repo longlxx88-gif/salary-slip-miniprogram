@@ -17,8 +17,10 @@ function markError(error, extra) {
 Page({
   data: {
     format: 'thai',
-    formatOptions: formats.formatList(),
+    formatOptions: [],
     multiImage: false,
+    manualOnly: false,
+    scanModeDesc: '',
     imagePath: '',
     imagePaths: [],
     replaceId: '',
@@ -32,14 +34,22 @@ Page({
     const replaceId = options.replaceId || ''
     const record = replaceId ? storage.getRecords().find(item => item.id === replaceId) : null
     const format = formats.normalizeFormat(options.format || (record && record.format) || storage.getLastFormat())
-    this.setData({ replaceId })
+    this.setData({ replaceId, formatOptions: formats.formatList() })
     this.applyFormat(format)
   },
 
   applyFormat(format) {
     const config = formats.getFormat(format)
-    this.setData({ format: config.id, multiImage: config.multiImage })
-    wx.setNavigationBarTitle({ title: config.multiImage ? `${config.name} · 截图识别` : `${config.name} · 拍照识别` })
+    this.config = config
+    const mode = formats.SCAN_MODES.find(item => item.id === config.scanMode) || formats.SCAN_MODES[0]
+    this.setData({
+      format: config.id,
+      multiImage: config.multiImage,
+      manualOnly: config.scanMode === 'manual',
+      scanModeDesc: mode.desc
+    })
+    const suffix = config.scanMode === 'manual' ? '手动录入' : (config.multiImage ? '截图识别' : '拍照识别')
+    wx.setNavigationBarTitle({ title: `${config.name} · ${suffix}` })
   },
 
   switchFormat(event) {
@@ -106,16 +116,19 @@ Page({
     }
 
     this.setData({ recognizing: true, progressText: '' })
-    this.ocrImage(this.data.imagePath, '')
+    this.ocrImage(this.data.imagePath, formats.ocrMode(this.data.format))
       .then(ocrResult => this.openReview({ ocrResult }))
-      .catch(error => this.showOcrError(error, true))
+      // 样例数据是泰国工资条，只有泰国公司在识别失败时才回退到样例
+      .catch(error => this.showOcrError(error, this.data.format === 'thai'))
       .then(() => this.setData({ recognizing: false }))
   },
 
-  // 国内格式：截图先压缩，再以 OCR_CONCURRENCY 张并发走通用文字识别，全部完成后合并校对
+  // 多张截图：按配置先去水印，再以 OCR_CONCURRENCY 张并发识别（通用 + 表格），全部完成后合并校对
   recognizePages() {
     const paths = this.data.imagePaths.slice()
     if (!paths.length) return
+    const mode = formats.ocrMode(this.data.format)
+    const cleanWatermark = Boolean(this.config && this.config.cleanWatermark)
     const results = []
     const uploadedPaths = []
     const failures = []
@@ -130,12 +143,12 @@ Page({
       nextIndex += 1
       const pageStartedAt = Date.now()
       // 整张失败时（上传/识别）从头再试一次
-      const attemptPage = attempt => this.ocrImage(uploadedPaths[index], 'cn').catch(error => {
+      const attemptPage = attempt => this.ocrImage(uploadedPaths[index], mode).catch(error => {
         if (attempt >= PAGE_ATTEMPTS) throw error
         console.warn(`[ocr] 第 ${index + 1} 张失败，重试`, error)
         return attemptPage(attempt + 1)
       })
-      return this.cleanScreenshot(paths[index])
+      return (cleanWatermark ? this.cleanScreenshot(paths[index]) : Promise.resolve(paths[index]))
         .then(path => {
           uploadedPaths[index] = path
           return attemptPage(1)

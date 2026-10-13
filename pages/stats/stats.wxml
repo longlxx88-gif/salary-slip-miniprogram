@@ -1,13 +1,15 @@
 <view class="page">
-  <view class="format-tabs">
-    <view
-      wx:for="{{formatOptions}}"
-      wx:key="id"
-      class="format-tab {{format === item.id ? 'active' : ''}}"
-      data-format="{{item.id}}"
-      bindtap="changeFormat"
-    >{{item.name}} · {{item.currency}}</view>
-  </view>
+  <scroll-view scroll-x class="format-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="format-tabs scrollable">
+      <view
+        wx:for="{{formatOptions}}"
+        wx:key="id"
+        class="format-tab {{format === item.id ? 'active' : ''}}"
+        data-format="{{item.id}}"
+        bindtap="changeFormat"
+      >{{item.name}} · {{item.currency}}</view>
+    </view>
+  </scroll-view>
 
   <view class="range-row">
     <view class="range-chip {{range === 'half' ? 'active' : ''}}" data-range="half" bindtap="changeRange">近半年</view>
@@ -40,8 +42,8 @@
 
   <view class="panel">
     <view class="chart-title-row">
-      <view class="section-title">{{chartName}}趋势</view>
-      <picker mode="selector" range="{{chartOptions}}" value="{{chartIndex}}" bindchange="changeChartItem">
+      <view class="section-title">{{chartName ? chartName + '趋势' : '趋势'}}</view>
+      <picker wx:if="{{chartOptions.length > 1}}" mode="selector" range="{{chartOptions}}" value="{{chartIndex}}" bindchange="changeChartItem">
         <view class="chart-picker">切换 ▾</view>
       </picker>
     </view>

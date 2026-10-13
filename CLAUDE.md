@@ -41,6 +41,12 @@ There is no CLI build. Develop, preview and upload in WeChat DevTools (微信开
 - **Noise filtering:** `isIgnored` and `ignoredKeywords` filter out headers, bank, address and company noise. `normalizeAmountText` fixes OCR character confusions (O→0, l/I→1, S→5, B→8).
 - **Filling and checking values:** `deriveMissingFormulaItems` fills one blank value from the others: social insurance/tax from the deduction total, and net/deduction total from gross. `validateItems` checks that gross − deductions = net, within 0.02.
 
+**Companies.** A "format" is a company. Users can add companies in the UI: 我的 → 模板管理, handled by `pages/template` (the list) and `pages/format` (the editor).
+- **Built-ins:** `thai` and `cn` are built in. Only their name, currency, symbol and colour can be overridden.
+- **Custom companies:** stored in `salary_formats_v1` as `{overrides, customs}` and synced as `snapshot.formats`. They always use the list engine (`cnSlip`), configured by `formats.engineConfig(id)`: key fields, enabled checks, and the scan mode (`photo` = table OCR, `screenshots` = `mode: 'cn'` plus optional watermark removal, `manual`).
+- **Templates:** each company's template is stored in `salary_template_v1_<id>`.
+- **Pages:** the home page is a wallet of company cards, and `pages/card` is the per-company monthly detail page.
+
 **Payslip formats (`utils/formats.js`).** Two formats are supported. Each month normally has one record of each.
 - `thai`: the Thai company payslip. It is photographed, uses one image and the table OCR, and is paid in THB. All logic described above applies to it. Records saved before the format field existed have no `format`; they are read as `thai` and never rewritten for that reason.
 - `cn`: the domestic company payslip. It is entered as several screenshots of the "我的薪资" app pages and is paid in CNY. The scan page calls `ocr` with `mode: 'general'`, which uses Tencent `GeneralAccurateOCR` and returns `lines` with `polygon`. Table OCR fails on these pages because of the diagonal `LY514857` watermark.

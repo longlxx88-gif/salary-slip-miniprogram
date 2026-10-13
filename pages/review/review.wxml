@@ -2,7 +2,7 @@
   <view class="status-card {{validation.ok ? 'ok' : 'bad'}}">
     <view class="status-main">
       <view class="status-head">
-        <view class="format-tag tag-{{format}}">{{formatName}}</view>
+        <view class="format-tag" style="color: {{formatColor}};">{{formatName}}</view>
         <text class="status-title">{{validation.ok ? '校对状态' : '金额不平衡'}}</text>
       </view>
       <view class="status-message">{{validation.message}}</view>
@@ -61,6 +61,9 @@
       <view wx:for="{{item.items}}" wx:for-item="field" wx:key="id" class="field-row {{field.pending && !field.confirmed ? 'pending' : ''}}">
         <view class="field-name">
           <input class="name-input" value="{{field.name}}" data-id="{{field.id}}" bindinput="updateName" />
+          <picker wx:if="{{field.isNew}}" mode="selector" range="{{groupOptions}}" range-key="title" value="{{field.groupIndex}}" data-id="{{field.id}}" bindchange="changeGroup">
+            <view class="group-chip">新字段 · 分组：{{groupOptions[field.groupIndex].title}} ▾</view>
+          </picker>
           <view wx:if="{{field.pending && !field.confirmed}}" class="field-note">{{field.note || '低置信度，需人工确认'}}</view>
         </view>
         <view class="field-amount">

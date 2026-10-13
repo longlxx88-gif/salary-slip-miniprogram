@@ -1,7 +1,6 @@
 const storage = require('../../utils/storage')
 const salary = require('../../utils/salary')
 const formats = require('../../utils/formats')
-const cnSlip = require('../../utils/cnSlip')
 
 const SECTION_TITLES = {
   income: '收入项目',
@@ -10,6 +9,15 @@ const SECTION_TITLES = {
   annual: '年度累计',
   tax: '计税项目',
   info: '考勤与参考信息（不计入金额）'
+}
+
+const GROUP_SHORT_TITLES = {
+  income: '收入',
+  deduct: '扣除',
+  total: '实发',
+  annual: '年度累计',
+  tax: '计税',
+  info: '参考信息'
 }
 
 function isCloudOrRemote(path) {
@@ -58,11 +66,14 @@ Page({
     }
 
     const format = formats.normalizeFormat(pending.format)
-    this.applyFormat(format)
+    const config = this.applyFormat(format)
     let draft
-    if (format === 'cn') {
-      draft = cnSlip.buildDraft(pending.ocrResults || [], storage.getTemplate('cn'))
-      draft.imagePaths = (pending.imagePaths || []).slice()
+    if (config.engine === 'list') {
+      // 列表引擎：多张截图为 ocrResults，单张拍照为 ocrResult
+      const results = pending.ocrResults || (pending.ocrResult ? [pending.ocrResult] : [])
+      draft = salary.buildListDraft(results, storage.getTemplate(format), format)
+      draft.imagePaths = config.multiImage ? (pending.imagePaths || []).slice() : []
+      draft.imagePath = config.multiImage ? '' : (pending.imagePath || '')
     } else {
       draft = salary.buildDraft(pending.ocrResult, storage.getTemplate(), storage.getSettings())
       draft.imagePath = pending.imagePath || ''
@@ -74,8 +85,20 @@ Page({
 
   applyFormat(format) {
     const config = formats.getFormat(format)
-    this.setData({ format: config.id, formatName: config.name, multiImage: config.multiImage })
+    this.config = config
+    this.setData({
+      format: config.id,
+      formatName: config.name,
+      formatColor: config.colorFrom,
+      multiImage: config.multiImage,
+      groupOptions: salary.templateGroups(format).map(group => ({ group, title: GROUP_SHORT_TITLES[group] || group }))
+    })
     wx.setNavigationBarTitle({ title: `${config.name} · 薪资校对` })
+    return config
+  },
+
+  isListEngine() {
+    return Boolean(this.config && this.config.engine === 'list')
   },
 
   setDraft(draft) {
@@ -89,7 +112,7 @@ Page({
 
   loadManualDraft(pending) {
     const format = formats.normalizeFormat(pending.format)
-    this.applyFormat(format)
+    const config = this.applyFormat(format)
     const template = storage.getTemplate(format)
     this.setDraft({
       id: pending.replaceId || '',
@@ -97,8 +120,8 @@ Page({
       month: salary.currentMonth(),
       items: salary.completeTemplateItems([], template, format),
       template,
-      imagePath: format === 'cn' ? '' : (pending.imagePath || ''),
-      imagePaths: format === 'cn' ? (pending.imagePaths || []).slice() : []
+      imagePath: config.multiImage ? '' : (pending.imagePath || ''),
+      imagePaths: config.multiImage ? (pending.imagePaths || []).slice() : []
     })
   },
 
@@ -109,7 +132,7 @@ Page({
       return
     }
     const format = formats.recordFormat(record)
-    this.applyFormat(format)
+    const config = this.applyFormat(format)
     const template = storage.getTemplate(format)
     const items = []
     salary.templateGroups(format).forEach(group => {
@@ -132,7 +155,7 @@ Page({
       items: salary.completeTemplateItems(items, template, format),
       template,
       imagePath: record.imagePath || '',
-      imagePaths: format === 'cn' ? imagePaths : [],
+      imagePaths: config.multiImage ? imagePaths : [],
       createdAt: record.createdAt || Date.now()
     })
   },
@@ -141,13 +164,16 @@ Page({
     const draft = this.data.draft
     const format = this.data.format
     const items = salary.completeTemplateItems(draft.items, draft.template || storage.getTemplate(format), format)
-    const validation = salary.validateItems(items, format)
+    const validation = salary.validateItems(items, format, draft.keys)
     const pendingCount = items.filter(item => item.pending && !item.confirmed).length
+    const groupIds = (this.data.groupOptions || []).map(option => option.group)
     const sections = salary.templateGroups(format).map(group => ({
       group,
       title: SECTION_TITLES[group] || group,
       collapsible: group === 'info',
-      items: items.filter(item => item.group === group)
+      items: items
+        .filter(item => item.group === group)
+        .map(item => (item.isNew ? Object.assign({}, item, { groupIndex: groupIds.indexOf(group) }) : item))
     }))
 
     // 折叠区里有待确认项时自动展开，否则无法确认导致不能保存
@@ -184,6 +210,12 @@ Page({
 
   confirmItem(event) {
     this.updateItem(event.currentTarget.dataset.id, { confirmed: true })
+  },
+
+  // 新字段改分组：保存后按这个分组写入模板
+  changeGroup(event) {
+    const group = this.data.groupOptions[Number(event.detail.value)]
+    if (group) this.updateItem(event.currentTarget.dataset.id, { group: group.group })
   },
 
   updateItem(id, patch) {
@@ -270,10 +302,44 @@ Page({
       group,
       name,
       amount: '',
+      isNew: true,
       pending: false,
       confirmed: true
     })
     this.setData({ draft }, () => this.refreshState())
+  },
+
+  // 新增公司：关键字段未设置或已不在模板里时，按字段名自动设置并写回公司配置
+  ensureKeyFields(template) {
+    const config = this.config
+    if (!config || config.engine !== 'list' || config.builtin) return []
+    const names = Object.keys(template)
+      .filter(group => group !== 'info')
+      .reduce((list, group) => list.concat(template[group] || []), [])
+    const has = name => Boolean(name) && names.indexOf(name) >= 0
+    const draftKeys = this.data.draft.keys || {}
+    const keys = Object.assign({}, config.keys)
+    const changed = []
+    const rules = [
+      { key: 'gross', label: '应发合计', pattern: /应发/, exclude: /计税/ },
+      { key: 'net', label: '实发合计', pattern: /实发/ },
+      { key: 'deductTotal', label: '扣除合计', pattern: /(扣款|扣除|扣项).*合计|合计.*(扣款|扣除|扣项)/ }
+    ]
+    rules.forEach(rule => {
+      if (has(keys[rule.key])) return
+      const guess = has(draftKeys[rule.key])
+        ? draftKeys[rule.key]
+        : names.find(name => rule.pattern.test(name) && !(rule.exclude && rule.exclude.test(name)))
+      const next = guess || ''
+      if (next !== (keys[rule.key] || '')) {
+        keys[rule.key] = next
+        if (next) changed.push(`${rule.label}：${next}`)
+      }
+    })
+    if (JSON.stringify(keys) !== JSON.stringify(config.keys || {})) {
+      formats.saveFormat(Object.assign({}, config, { keys }))
+    }
+    return changed
   },
 
   buildTemplate(items) {
@@ -283,7 +349,7 @@ Page({
       template[group] = []
     })
 
-    if (format === 'cn') {
+    if (this.isListEngine()) {
       items.forEach(item => {
         if (!item.name || !template[item.group]) return
         if (template[item.group].indexOf(item.name) < 0) template[item.group].push(item.name)
@@ -316,9 +382,9 @@ Page({
       })
   },
 
-  // 国内格式金额不平衡时需要二次确认（泰国格式保持原有行为）
+  // 列表引擎公司（国内 / 新增公司）金额不平衡时需要二次确认（泰国格式保持原有行为）
   confirmUnbalanced() {
-    if (this.data.format !== 'cn' || this.data.validation.ok) return Promise.resolve()
+    if (!this.isListEngine() || this.data.validation.ok) return Promise.resolve()
     return new Promise((resolve, reject) => {
       wx.showModal({
         title: '金额不平衡',
@@ -337,7 +403,7 @@ Page({
     const template = this.buildTemplate(draft.items)
 
     return this.resolveDuplicateMonth(draft).then(resolvedDraft => {
-      const sources = format === 'cn'
+      const sources = this.data.multiImage
         ? (this.data.imagePaths || [])
         : [resolvedDraft.imagePath || this.data.imagePath].filter(Boolean)
       return this.persistImages(sources).then(paths => {
@@ -347,7 +413,17 @@ Page({
           imagePaths: paths
         })
         storage.saveTemplate(template, format)
+        const keyChanges = this.ensureKeyFields(template)
         storage.upsertRecord(salary.recordFromDraft(recordDraft))
+        if (keyChanges.length) {
+          wx.showModal({
+            title: '已保存',
+            content: `已根据字段名自动设置关键字段：\n${keyChanges.join('\n')}\n\n可在“我的 → 模板管理”中修改。`,
+            showCancel: false,
+            success: () => wx.navigateBack({ delta: 1 })
+          })
+          return
+        }
         wx.showToast({ title: '已保存' })
         setTimeout(() => wx.navigateBack({ delta: 1 }), 400)
       })

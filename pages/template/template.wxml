@@ -1,21 +1,26 @@
 <view class="page">
-  <view class="format-tabs">
+  <view class="intro muted">每家公司对应一个模板：卡片名称、币种、扫码模式和工资字段都在这里设置。</view>
+
+  <view class="panel company-panel">
     <view
-      wx:for="{{formatOptions}}"
+      wx:for="{{companies}}"
       wx:key="id"
-      class="format-tab {{format === item.id ? 'active' : ''}}"
-      data-format="{{item.id}}"
-      bindtap="changeFormat"
-    >{{item.name}}</view>
-  </view>
-
-  <view class="panel" wx:for="{{sections}}" wx:key="group">
-    <view class="section-title">{{item.title}}</view>
-    <view wx:for="{{item.items}}" wx:for-item="field" wx:key="index" class="template-row">
-      <input value="{{field}}" data-group="{{item.group}}" data-index="{{index}}" bindinput="updateName" />
+      class="company {{item.disabled ? 'disabled' : ''}}"
+      data-id="{{item.id}}"
+      bindtap="openCompany"
+    >
+      <view class="swatch" style="background: linear-gradient(135deg, {{item.colorFrom}}, {{item.colorTo}});">{{item.currency}}</view>
+      <view class="company-main">
+        <view class="company-name">
+          <text>{{item.name}}</text>
+          <text wx:if="{{item.builtin}}" class="tag">内置</text>
+          <text wx:if="{{item.disabled}}" class="tag muted-tag">已停用</text>
+        </view>
+        <view class="muted">{{item.modeName}} · {{item.count}} 条记录</view>
+      </view>
+      <view class="arrow">›</view>
     </view>
-    <button class="btn secondary add-btn" data-group="{{item.group}}" bindtap="addField">添加字段</button>
   </view>
 
-  <button class="btn warn reset-btn" bindtap="resetTemplate">重置为默认模板</button>
+  <button class="btn" bindtap="addCompany">+ 新增公司</button>
 </view>

@@ -166,6 +166,25 @@ button::after {
   color: var(--ink-2);
 }
 
+/* 公司较多时可横向滚动 */
+.format-scroll {
+  width: 100%;
+  white-space: nowrap;
+  margin-bottom: 24rpx;
+}
+
+.format-tabs.scrollable {
+  display: inline-flex;
+  min-width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0;
+}
+
+.format-tabs.scrollable .format-tab {
+  flex: 1 0 auto;
+  padding: 0 28rpx;
+}
+
 .format-tab.active {
   background: var(--surface);
   color: var(--ink);
