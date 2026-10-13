@@ -1,0 +1,65 @@
+<view class="page detail">
+  <view class="detail-card" style="background: linear-gradient(135deg, {{card.colorFrom}} 0%, {{card.colorTo}} 100%);">
+    <view class="card-top">
+      <text class="card-name">{{card.name}}</text>
+      <text class="card-currency">{{card.currency}}</text>
+    </view>
+    <view class="card-body">
+      <view class="card-label">累计实发</view>
+      <view class="card-amount num">{{card.symbol}} {{card.netText}}</view>
+    </view>
+    <view class="card-bottom">
+      <text class="card-label">记录月份</text>
+      <text class="card-months num">{{card.monthsText}}</text>
+    </view>
+  </view>
+
+  <view class="panel balance-panel">
+    <view>
+      <view class="muted">{{selectedYear === '全部' ? '累计实发' : selectedYear + ' 年实发'}}</view>
+      <view class="balance num">{{card.symbol}} {{summary.netText}}</view>
+      <view class="muted num">月均 {{card.symbol}} {{summary.avgNetText}} · {{summary.count}} 个月</view>
+    </view>
+    <view class="pill-btn" bindtap="goScan">录入</view>
+  </view>
+
+  <view class="list-head">
+    <text class="list-title">月度记录</text>
+    <picker mode="selector" range="{{yearOptions}}" bindchange="changeYear">
+      <view class="year-picker">{{selectedYearText}} ▾</view>
+    </picker>
+  </view>
+
+  <view wx:if="{{rows.length}}" class="panel list-panel">
+    <view
+      wx:for="{{rows}}"
+      wx:key="month"
+      class="row {{item.missing ? 'missing' : ''}}"
+      data-id="{{item.id}}"
+      data-month="{{item.month}}"
+      bindtap="openRow"
+      bindlongpress="rowActions"
+    >
+      <view class="row-icon" style="{{item.missing ? '' : 'background: ' + card.colorFrom + ';'}}">
+        <view class="row-icon-month num">{{item.monthNo}}</view>
+        <view class="row-icon-year num">{{item.year}}</view>
+      </view>
+      <view class="row-main">
+        <view class="row-title num">{{item.month}}</view>
+        <view wx:if="{{!item.missing}}" class="row-sub num">应发 {{item.grossText}} · 扣除 {{item.deductText}}</view>
+        <view wx:else class="row-sub">本月未录入</view>
+      </view>
+      <view wx:if="{{!item.missing}}" class="row-amount num">{{card.symbol}} {{item.netText}}</view>
+      <view wx:else class="row-link">去录入</view>
+      <view class="row-arrow">›</view>
+    </view>
+  </view>
+
+  <view wx:else class="empty">
+    <view class="empty-icon">+</view>
+    <view class="section-title">还没有工资记录</view>
+    <view class="muted">点击“录入”添加第一条</view>
+  </view>
+
+  <view wx:if="{{rows.length}}" class="detail-hint">长按记录可编辑、重拍覆盖或删除</view>
+</view>

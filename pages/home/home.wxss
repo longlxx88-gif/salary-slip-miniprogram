@@ -1,228 +1,148 @@
 .home {
+  /* 给右下角的新增按钮留出空间 */
   padding-bottom: 200rpx;
 }
 
-.home-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin: 8rpx 4rpx 28rpx;
-}
-
-.eyebrow {
-  color: var(--muted);
-  font-size: 24rpx;
-}
-
-.headline {
-  font-size: 44rpx;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-/* ---------- 汇总卡 ---------- */
-.hero {
-  position: relative;
-  overflow: hidden;
-  margin-bottom: 24rpx;
-  padding: 32rpx;
-  border-radius: 28rpx;
-  color: #fff;
-  background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%);
-  box-shadow: 0 16rpx 40rpx rgba(15, 118, 110, 0.25);
-}
-
-.hero-cn {
-  background: linear-gradient(135deg, #c2410c 0%, #7c2d12 100%);
-  box-shadow: 0 16rpx 40rpx rgba(194, 65, 12, 0.22);
-}
-
-.hero::after {
-  content: '';
-  position: absolute;
-  right: -80rpx;
-  top: -80rpx;
-  width: 280rpx;
-  height: 280rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.hero-top {
+.wallet-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin: 16rpx 4rpx 32rpx;
 }
 
-.hero-name {
-  font-size: 28rpx;
-  font-weight: 600;
+.wallet-title {
+  font-size: 56rpx;
+  font-weight: 800;
 }
 
-.hero-currency {
-  padding: 4rpx 16rpx;
+/* 右下角圆形新增按钮，层级高于叠放的卡片 */
+.fab {
+  position: fixed;
+  right: 40rpx;
+  bottom: 64rpx;
+  z-index: 100;
+  width: 112rpx;
+  height: 112rpx;
+  line-height: 106rpx;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 64rpx;
+  font-weight: 300;
+  text-align: center;
+  box-shadow: 0 16rpx 36rpx rgba(23, 32, 51, 0.3);
+}
+
+/* ---------- 钱包卡片 ---------- */
+.wallet {
+  position: relative;
+}
+
+/* 卡片高 400rpx；叠放的卡片只露出顶部 120rpx，最后一张完整显示 */
+.wallet-card {
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  height: 400rpx;
+  padding: 32rpx 36rpx;
+  border-radius: 32rpx;
+  color: #fff;
+  box-shadow: 0 -6rpx 24rpx rgba(23, 32, 51, 0.18);
+}
+
+.wallet-card.stacked {
+  margin-bottom: -280rpx;
+}
+
+.wallet-card::before {
+  content: '';
+  position: absolute;
+  right: -90rpx;
+  top: -120rpx;
+  width: 340rpx;
+  height: 340rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.wallet-card::after {
+  content: '';
+  position: absolute;
+  left: -60rpx;
+  bottom: -140rpx;
+  width: 300rpx;
+  height: 300rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.card-top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 56rpx;
+}
+
+.card-name {
+  font-size: 34rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+
+.card-currency {
+  padding: 4rpx 18rpx;
   border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.2);
   font-size: 22rpx;
   letter-spacing: 2rpx;
 }
 
-.hero-label {
-  margin-top: 24rpx;
+.card-strip-amount {
+  font-size: 28rpx;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.card-body {
+  position: relative;
+  z-index: 1;
+  margin-top: 56rpx;
+}
+
+.card-label {
   font-size: 24rpx;
   opacity: 0.75;
 }
 
-.hero-amount {
+.card-amount {
   margin-top: 4rpx;
-  font-size: 56rpx;
+  font-size: 60rpx;
   font-weight: 700;
   line-height: 1.2;
   word-break: break-all;
 }
 
-.hero-foot {
-  display: flex;
-  gap: 64rpx;
-  margin-top: 28rpx;
-  padding-top: 20rpx;
-  border-top: 2rpx solid rgba(255, 255, 255, 0.16);
-}
-
-.hero-foot-label {
-  font-size: 22rpx;
-  opacity: 0.7;
-}
-
-.hero-foot-value {
-  font-size: 28rpx;
-  font-weight: 600;
-}
-
-/* ---------- 月份分组 ---------- */
-.month-group {
-  margin-top: 12rpx;
-}
-
-.month-title {
-  margin: 20rpx 8rpx 16rpx;
-  color: var(--ink-2);
-  font-size: 26rpx;
-  font-weight: 600;
-}
-
-.record {
-  margin-bottom: 16rpx;
-  padding: 28rpx 28rpx 0;
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
-}
-
-.record-main {
+.card-bottom {
+  position: absolute;
+  left: 36rpx;
+  right: 36rpx;
+  bottom: 30rpx;
+  z-index: 1;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 24rpx;
-  padding-bottom: 24rpx;
+  align-items: baseline;
 }
 
-.record-left {
-  min-width: 0;
-}
-
-.record-sub {
-  margin-top: 6rpx;
-  color: var(--muted);
-  font-size: 24rpx;
-}
-
-.record-left .format-tag {
-  margin-bottom: 8rpx;
-}
-
-.record-right {
-  text-align: right;
-}
-
-.record-net-label {
-  color: var(--muted);
-  font-size: 22rpx;
-}
-
-.record-net {
-  font-size: 40rpx;
-  font-weight: 700;
-  color: var(--ink);
-  white-space: nowrap;
-}
-
-.record-actions {
-  display: flex;
-  border-top: 2rpx solid var(--line);
-}
-
-.action {
-  flex: 1;
-  height: 80rpx;
-  line-height: 80rpx;
-  text-align: center;
-  color: var(--ink-2);
-  font-size: 26rpx;
-}
-
-.action + .action {
-  border-left: 2rpx solid var(--line);
-}
-
-.action.danger {
-  color: var(--danger);
-}
-
-.record.missing {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  padding: 24rpx 28rpx;
-  background: transparent;
-  box-shadow: none;
-  border: 2rpx dashed #cfd6df;
-}
-
-.missing-text {
-  flex: 1;
-  color: var(--muted);
-  font-size: 26rpx;
-}
-
-.missing-link {
-  color: var(--primary);
+.card-months {
   font-size: 26rpx;
   font-weight: 600;
 }
 
-/* ---------- 新增按钮 ---------- */
-/* button 在 style v2 下默认 width: 184px，需同时限制 min/max 宽度才能保持正圆 */
-button.fab {
-  position: fixed;
-  right: 40rpx;
-  bottom: 64rpx;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 112rpx;
-  min-width: 112rpx;
-  max-width: 112rpx;
-  height: 112rpx;
-  min-height: 112rpx;
-  margin: 0;
-  padding: 0;
-  border-radius: 50%;
-  background: var(--primary);
-  color: #fff;
-  font-size: 64rpx;
-  font-weight: 300;
-  line-height: 112rpx;
-  box-shadow: 0 16rpx 36rpx rgba(15, 118, 110, 0.35);
+.wallet-hint {
+  margin-top: 32rpx;
+  text-align: center;
+  color: var(--muted);
+  font-size: 24rpx;
 }

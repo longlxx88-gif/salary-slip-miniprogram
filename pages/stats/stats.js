@@ -2,9 +2,29 @@ const storage = require('../../utils/storage')
 const salary = require('../../utils/salary')
 const formats = require('../../utils/formats')
 
-const CHART_OPTIONS = {
-  thai: ['实发工资', '基本工资', '绩效奖金KPI'],
-  cn: ['实发工资合计', '出勤基本工资(月薪)', '出勤加班费及补助(月薪)', '餐补']
+// 趋势图可选项目：只列出当前记录里至少一个月不为 0 的字段；实发、应发排在最前，其余按金额合计从大到小
+function chartOptionsFor(records, template, format) {
+  const names = []
+  salary.templateGroups(format).forEach(group => {
+    ;(template[group] || []).forEach(name => {
+      if (names.indexOf(name) < 0) names.push(name)
+    })
+  })
+  records.forEach(record => {
+    Object.keys(record.items || {}).forEach(name => {
+      if (names.indexOf(name) < 0) names.push(name)
+    })
+  })
+
+  const totals = {}
+  names.forEach(name => {
+    totals[name] = records.reduce((sum, record) => sum + Math.abs(Number(record.items[name]) || 0), 0)
+  })
+  const keys = salary.keyFieldNames(template, format)
+  const rank = name => (name === keys.net ? 0 : name === keys.gross ? 1 : 2)
+  return names
+    .filter(name => totals[name] > 0)
+    .sort((a, b) => rank(a) - rank(b) || totals[b] - totals[a])
 }
 
 function money(value) {
@@ -19,13 +39,13 @@ function kMoney(value, digits) {
 Page({
   data: {
     format: '',
-    formatOptions: formats.formatList(),
+    formatOptions: [],
     symbol: '฿',
     accent: '#0f766e',
     range: 'all',
-    chartOptions: CHART_OPTIONS.thai,
+    chartOptions: [],
     chartIndex: 0,
-    chartName: '实发工资',
+    chartName: '',
     selectedPointText: '',
     linePoints: [],
     records: [],
@@ -39,20 +59,29 @@ Page({
 
   load() {
     const allRecords = storage.getRecords()
-    // 首次进入：默认泰国；只有国内记录时默认国内
-    const format = this.data.format || (allRecords.some(record => record.format === 'thai') || !allRecords.length ? 'thai' : 'cn')
+    // 有记录的公司排在前面；首次进入默认第一家有记录的公司
+    const withRecords = id => allRecords.some(record => record.format === id)
+    const formatOptions = formats.formatList()
+      .filter(config => withRecords(config.id) || !config.builtin)
+      .concat(formats.formatList().filter(config => config.builtin && !withRecords(config.id)))
+    const current = formatOptions.some(config => config.id === this.data.format) ? this.data.format : ''
+    const format = current || (formatOptions.find(config => withRecords(config.id)) || formatOptions[0] || { id: 'thai' }).id
+    const config = formats.getFormat(format)
     const template = storage.getTemplate(format)
     const records = this.filterRecords(allRecords.filter(record => record.format === format), this.data.range)
     const summary = salary.summarize(records, template, format)
-    const chartOptions = CHART_OPTIONS[format]
-    const chartIndex = Math.min(this.data.chartIndex, chartOptions.length - 1)
+    const chartOptions = chartOptionsFor(records, template, format)
+    // 切换时间范围后尽量保持当前项目，没有数据了才回到第一项
+    const kept = chartOptions.indexOf(this.data.chartName)
+    const chartIndex = kept >= 0 ? kept : 0
     this.setData({
       format,
-      symbol: formats.getFormat(format).symbol,
-      accent: format === 'cn' ? '#c2410c' : '#0f766e',
+      formatOptions,
+      symbol: config.symbol,
+      accent: config.colorFrom,
       chartOptions,
       chartIndex,
-      chartName: chartOptions[chartIndex],
+      chartName: chartOptions[chartIndex] || '',
       records,
       template,
       summary: Object.assign({}, summary, {
@@ -76,7 +105,7 @@ Page({
   changeFormat(event) {
     const format = event.currentTarget.dataset.format
     if (format === this.data.format) return
-    this.setData({ format, chartIndex: 0, selectedPointText: '' }, () => this.load())
+    this.setData({ format, chartIndex: 0, chartName: '', selectedPointText: '' }, () => this.load())
   },
 
   changeRange(event) {
@@ -98,8 +127,8 @@ Page({
   drawLine() {
     const ctx = wx.createCanvasContext('lineChart', this)
     const records = this.data.records
-    const fieldName = this.resolveChartFieldName(this.data.chartName)
-    const values = records.map(record => Number(record.items[fieldName] || 0))
+    const fieldName = this.data.chartName
+    const values = fieldName ? records.map(record => Number(record.items[fieldName] || 0)) : []
     const points = []
     const plot = { left: 58, top: 34, width: 286, height: 138 }
     this.clearCanvas(ctx)
@@ -139,13 +168,6 @@ Page({
       ctx.fillText('暂无趋势数据', 120, 110)
     }
     ctx.draw(false, () => this.setData({ linePoints: points }))
-  },
-
-  resolveChartFieldName(name) {
-    if (name.indexOf('实发') >= 0) {
-      return (this.data.template.total || []).find(item => item.indexOf('实发') >= 0) || name
-    }
-    return (this.data.template.income || []).find(item => item === name || item.indexOf(name) >= 0) || name
   },
 
   tapLineChart(event) {

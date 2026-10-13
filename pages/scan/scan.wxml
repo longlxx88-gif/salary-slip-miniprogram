@@ -1,15 +1,26 @@
 <view class="page">
-  <view class="format-tabs">
-    <view
-      wx:for="{{formatOptions}}"
-      wx:key="id"
-      class="format-tab {{format === item.id ? 'active' : ''}}"
-      data-format="{{item.id}}"
-      bindtap="switchFormat"
-    >{{item.name}}</view>
-  </view>
+  <scroll-view scroll-x class="format-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="format-tabs scrollable">
+      <view
+        wx:for="{{formatOptions}}"
+        wx:key="id"
+        class="format-tab {{format === item.id ? 'active' : ''}}"
+        data-format="{{item.id}}"
+        bindtap="switchFormat"
+      >{{item.name}}</view>
+    </view>
+  </scroll-view>
 
-  <block wx:if="{{!multiImage}}">
+  <block wx:if="{{manualOnly}}">
+    <view class="panel manual-panel">
+      <view class="placeholder-icon">✎</view>
+      <view class="placeholder-title">该公司设置为仅手动录入</view>
+      <view class="muted">可在“我的 → 模板管理”中修改扫码模式</view>
+    </view>
+    <button class="btn" bindtap="openManualReview">开始手动录入</button>
+  </block>
+
+  <block wx:elif="{{!multiImage}}">
     <view class="panel preview-panel">
       <image wx:if="{{imagePath}}" class="preview" src="{{imagePath}}" mode="aspectFit" bindtap="previewImage"></image>
       <view wx:else class="placeholder" bindtap="chooseCamera">
@@ -27,7 +38,7 @@
 
   <block wx:else>
     <view class="panel tip-panel">
-      <view class="tip-title">上传“我的薪资”各页截图</view>
+      <view class="tip-title">上传工资页面截图</view>
       <view class="tip-list">
         <view>· 请用手机截屏，不要拍屏幕</view>
         <view>· 可一次多选，最多 9 张</view>
@@ -54,15 +65,17 @@
     </view>
   </block>
 
-  <button
-    class="btn recognize"
-    disabled="{{(multiImage ? !imagePaths.length : !imagePath) || recognizing}}"
-    loading="{{recognizing}}"
-    bindtap="recognize"
-  >
-    {{recognizing ? (progressText || '识别中') : '开始云端识别'}}
-  </button>
-  <view class="manual" bindtap="openManualReview">不识别，手动录入 ›</view>
+  <block wx:if="{{!manualOnly}}">
+    <button
+      class="btn recognize"
+      disabled="{{(multiImage ? !imagePaths.length : !imagePath) || recognizing}}"
+      loading="{{recognizing}}"
+      bindtap="recognize"
+    >
+      {{recognizing ? (progressText || '识别中') : '开始云端识别'}}
+    </button>
+    <view class="manual" bindtap="openManualReview">不识别，手动录入 ›</view>
+  </block>
 
   <canvas type="2d" id="cleanCanvas" class="compress-canvas" style="width: 10px; height: 10px;"></canvas>
   <canvas canvas-id="compressCanvas" class="compress-canvas" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"></canvas>

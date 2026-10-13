@@ -1,8 +1,13 @@
 const formats = require('./formats')
 const cnSlip = require('./cnSlip')
 
+// 国内公司及界面新增的公司走列表引擎（cnSlip），泰国公司走本文件原有逻辑
 function isCn(format) {
-  return formats.normalizeFormat(format) === 'cn'
+  return Boolean(format) && formats.isListEngine(format)
+}
+
+function engine(format) {
+  return formats.engineConfig(format)
 }
 
 const SALARY_TEMPLATE_ORDER = {
@@ -164,7 +169,7 @@ function uniqueNames(names) {
 }
 
 function getOrderedTemplate(template, format) {
-  if (isCn(format)) return cnSlip.getOrderedTemplate(template)
+  if (isCn(format)) return cnSlip.getOrderedTemplate(template, engine(format))
   const cleanIncomeItems = ((template && template.income) || [])
     .filter(name => !isIgnored(name))
   const totalItems = (template && template.total) || []
@@ -564,8 +569,9 @@ function relocateLikelyGross(items) {
   candidate.group = 'income'
 }
 
-function validateItems(items, format) {
-  if (isCn(format)) return cnSlip.validate(items)
+// keyOverrides：识别时推断出的关键字段（新增公司首次识别、尚未写回配置时）
+function validateItems(items, format, keyOverrides) {
+  if (isCn(format)) return cnSlip.validate(items, Object.assign({}, engine(format), keyOverrides))
   const gross = findAmount(items, '应发')
   const net = findAmount(items, '实发')
   const deductTotal = findDeductTotal(items)
@@ -616,9 +622,24 @@ function recordFromDraft(draft) {
   }
 }
 
+// 列表引擎公司（国内 / 新增公司）的识别草稿；ocrResults 为一张或多张图片的 OCR 结果
+function buildListDraft(ocrResults, template, format) {
+  return cnSlip.buildDraft(ocrResults, template, engine(format))
+}
+
+// 应发 / 实发对应的字段名
+function keyFieldNames(template, format) {
+  if (isCn(format)) return { gross: engine(format).gross, net: engine(format).net }
+  return {
+    gross: (template.total || []).concat(template.income || []).find(name => name.indexOf('应发') >= 0) || '',
+    net: (template.total || []).find(name => name.indexOf('实发') >= 0) || ''
+  }
+}
+
 // 单条记录的应发/扣除/实发，按记录自身的格式取值
 function recordTotals(record, template) {
-  if (isCn(formats.recordFormat(record))) return cnSlip.recordTotals(record, template)
+  const recordFormatId = formats.recordFormat(record)
+  if (isCn(recordFormatId)) return cnSlip.recordTotals(record, template, engine(recordFormatId))
   const items = (record && record.items) || {}
   const grossName = (template.total || []).concat(template.income || []).find(name => name.indexOf('应发') >= 0)
   const netName = (template.total || []).find(name => name.indexOf('实发') >= 0)
@@ -631,7 +652,7 @@ function recordTotals(record, template) {
 
 function summarize(records, template, format) {
   if (isCn(format)) {
-    const totals = records.map(record => cnSlip.recordTotals(record, template))
+    const totals = records.map(record => cnSlip.recordTotals(record, template, engine(format)))
     const sum = key => totals.reduce((total, item) => total + item[key], 0)
     const gross = sum('gross')
     const net = sum('net')
@@ -687,6 +708,8 @@ module.exports = {
   validateItems,
   recordFromDraft,
   recordTotals,
+  keyFieldNames,
+  buildListDraft,
   summarize,
   getOrderedTemplate,
   sortItems,

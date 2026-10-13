@@ -1,0 +1,116 @@
+<view class="page format-page">
+  <!-- 卡片预览 -->
+  <view class="preview-card" style="background: linear-gradient(135deg, {{previewFrom}} 0%, {{previewTo}} 100%);">
+    <view class="preview-top">
+      <text class="preview-name">{{form.name || '公司名称'}}</text>
+      <text class="preview-currency">{{form.currency || '币种'}}</text>
+    </view>
+    <view class="preview-label">累计实发</view>
+    <view class="preview-amount num">{{form.symbol || '¥'}} 0.00</view>
+  </view>
+
+  <view class="group-title">基本信息</view>
+  <view class="panel">
+    <view class="form-row">
+      <text class="form-label">公司名称</text>
+      <input class="form-input" value="{{form.name}}" data-field="name" bindinput="inputForm" placeholder="如：某某科技" maxlength="16" />
+    </view>
+    <view class="form-label currency-label">币种</view>
+    <view class="currency-row">
+      <view
+        wx:for="{{currencies}}"
+        wx:key="code"
+        class="currency-chip {{form.currency === item.code ? 'active' : ''}}"
+        data-code="{{item.code}}"
+        bindtap="pickCurrency"
+      >
+        <text class="currency-symbol">{{item.symbol}}</text>
+        <text>{{item.name}}</text>
+      </view>
+    </view>
+    <view class="form-label color-label">卡片颜色</view>
+    <view class="color-row">
+      <view
+        wx:for="{{colors}}"
+        wx:key="id"
+        class="color-dot {{form.color === item.id ? 'active' : ''}}"
+        style="background: linear-gradient(135deg, {{item.from}}, {{item.to}});"
+        data-color="{{item.id}}"
+        bindtap="pickColor"
+      ></view>
+    </view>
+  </view>
+
+  <view class="group-title">扫码模式</view>
+  <view wx:if="{{builtin}}" class="panel">
+    <view class="muted">内置公司的扫码模式与校验规则保持不变，可修改名称、币种、颜色和字段。</view>
+  </view>
+  <view wx:else class="panel">
+    <view
+      wx:for="{{scanModes}}"
+      wx:key="id"
+      class="mode-row {{form.scanMode === item.id ? 'active' : ''}}"
+      data-mode="{{item.id}}"
+      bindtap="pickMode"
+    >
+      <view class="radio"></view>
+      <view>
+        <view class="mode-name">{{item.name}}</view>
+        <view class="muted">{{item.desc}}</view>
+      </view>
+    </view>
+    <view wx:if="{{form.scanMode === 'screenshots'}}" class="switch-line">
+      <view>
+        <view class="mode-name">上传前去水印</view>
+        <view class="muted">截图满屏浅色水印时开启</view>
+      </view>
+      <switch checked="{{form.cleanWatermark}}" color="#0f766e" bindchange="toggleWatermark" />
+    </view>
+  </view>
+
+  <block wx:if="{{engine === 'list' && !builtin}}">
+    <view class="group-title">关键字段与金额校验</view>
+    <view class="panel">
+      <view wx:for="{{keyRows}}" wx:key="key" class="form-row">
+        <text class="form-label">{{item.label}}</text>
+        <picker class="key-picker" mode="selector" range="{{item.options}}" value="{{item.index}}" data-key="{{item.key}}" bindchange="pickKey">
+          <view class="picker-value {{item.value ? '' : 'placeholder'}}">{{item.value || '（不设置）'}} ▾</view>
+        </picker>
+      </view>
+      <view wx:for="{{checkOptions}}" wx:key="key" class="switch-line">
+        <text>{{item.label}}</text>
+        <switch checked="{{form.checks[item.key]}}" color="#0f766e" data-key="{{item.key}}" bindchange="toggleCheck" />
+      </view>
+      <view class="muted hint">识别后按启用的公式自动校验；公式平衡时未识别出的 0 会自动补齐。</view>
+    </view>
+  </block>
+
+  <view class="group-title">工资字段</view>
+  <view class="muted hint-top">字段名需与工资条上的文字一致，识别时按字段名匹配。</view>
+  <view wx:for="{{groups}}" wx:for-item="group" wx:key="group" class="panel">
+    <view class="section-title">{{group.title}}</view>
+    <view wx:for="{{group.fields}}" wx:for-item="field" wx:key="index" class="field-line">
+      <input
+        class="field-input"
+        value="{{field.name}}"
+        disabled="{{field.locked}}"
+        data-group="{{group.group}}"
+        data-index="{{index}}"
+        bindinput="inputField"
+        bindblur="blurField"
+      />
+      <view wx:if="{{!field.locked}}" class="field-remove" data-group="{{group.group}}" data-index="{{index}}" bindtap="removeField">×</view>
+      <view wx:else class="field-lock">内置</view>
+    </view>
+    <view class="add-field" data-group="{{group.group}}" bindtap="addField">+ 添加字段</view>
+  </view>
+
+  <button class="btn" bindtap="save">保存</button>
+  <view class="sub-actions">
+    <view wx:if="{{builtin}}" class="sub-action" bindtap="resetFields">恢复默认字段</view>
+    <block wx:if="{{!builtin && !isNew}}">
+      <view class="sub-action" bindtap="toggleDisabled">{{form.disabled ? '启用公司' : '停用公司'}}</view>
+      <view class="sub-action danger" bindtap="removeCompany">删除公司</view>
+    </block>
+  </view>
+</view>

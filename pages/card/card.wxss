@@ -1,0 +1,211 @@
+.detail {
+  padding-bottom: 80rpx;
+}
+
+/* ---------- 卡面（与首页一致） ---------- */
+.detail-card {
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  height: 400rpx;
+  margin-bottom: 28rpx;
+  padding: 32rpx 36rpx;
+  border-radius: 32rpx;
+  color: #fff;
+  box-shadow: 0 16rpx 40rpx rgba(23, 32, 51, 0.2);
+}
+
+.detail-card::before {
+  content: '';
+  position: absolute;
+  right: -90rpx;
+  top: -120rpx;
+  width: 340rpx;
+  height: 340rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.card-top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-name {
+  font-size: 34rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+
+.card-currency {
+  padding: 4rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 22rpx;
+}
+
+.card-body {
+  position: relative;
+  z-index: 1;
+  margin-top: 56rpx;
+}
+
+.card-label {
+  font-size: 24rpx;
+  opacity: 0.75;
+}
+
+.card-amount {
+  margin-top: 4rpx;
+  font-size: 60rpx;
+  font-weight: 700;
+  line-height: 1.2;
+  word-break: break-all;
+}
+
+.card-bottom {
+  position: absolute;
+  left: 36rpx;
+  right: 36rpx;
+  bottom: 30rpx;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.card-months {
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+/* ---------- 汇总（参照钱包“余额”） ---------- */
+.balance-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.balance {
+  margin: 4rpx 0;
+  font-size: 52rpx;
+  font-weight: 800;
+  line-height: 1.2;
+  word-break: break-all;
+}
+
+.pill-btn {
+  flex-shrink: 0;
+  height: 80rpx;
+  padding: 0 40rpx;
+  line-height: 80rpx;
+  border-radius: 999rpx;
+  background: var(--ink);
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+/* ---------- 月度记录（参照钱包“近期交易”） ---------- */
+.list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 36rpx 8rpx 16rpx;
+}
+
+.list-title {
+  font-size: 38rpx;
+  font-weight: 800;
+}
+
+.year-picker {
+  color: var(--primary);
+  font-size: 26rpx;
+}
+
+.list-panel {
+  padding: 0 28rpx;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid var(--line);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row-icon {
+  flex-shrink: 0;
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 20rpx;
+  background: #c2c8d0;
+  color: #fff;
+  text-align: center;
+}
+
+.row-icon-month {
+  padding-top: 10rpx;
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.row-icon-year {
+  font-size: 18rpx;
+  opacity: 0.85;
+}
+
+.row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.row-sub {
+  margin-top: 4rpx;
+  color: var(--muted);
+  font-size: 22rpx;
+}
+
+.row-amount {
+  font-size: 32rpx;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.row-link {
+  color: var(--primary);
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.row-arrow {
+  color: #c2c8d0;
+  font-size: 36rpx;
+}
+
+.row.missing .row-title {
+  color: var(--muted);
+}
+
+.detail-hint {
+  margin-top: 24rpx;
+  text-align: center;
+  color: var(--muted);
+  font-size: 22rpx;
+}

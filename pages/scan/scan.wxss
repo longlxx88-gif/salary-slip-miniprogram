@@ -42,6 +42,14 @@
   font-weight: 600;
 }
 
+.manual-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 64rpx 28rpx;
+  text-align: center;
+}
+
 .tip-panel {
   background: var(--cn-soft);
   box-shadow: none;

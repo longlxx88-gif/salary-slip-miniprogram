@@ -221,6 +221,16 @@
   background: #fff;
 }
 
+.group-chip {
+  display: inline-block;
+  margin: 4rpx 0 4rpx 4rpx;
+  padding: 2rpx 16rpx;
+  border-radius: 999rpx;
+  background: #eef0ff;
+  color: #4f46e5;
+  font-size: 22rpx;
+}
+
 .field-note {
   margin-top: 4rpx;
   padding: 0 4rpx;

@@ -1,5 +1,6 @@
 const storage = require('./utils/storage')
 const backup = require('./utils/backup')
+const formats = require('./utils/formats')
 
 App({
   globalData: {
@@ -15,6 +16,7 @@ App({
         traceUser: true
       })
       storage.onChange(() => backup.schedule())
+      formats.onChange(() => backup.schedule())
       backup.init()
     }
   }
